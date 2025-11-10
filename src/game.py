@@ -12,7 +12,6 @@ class LiarsDiceGame:
         # maintain per-player dice list 
         self.total_dice = TOTAL_DICE
         self.dice = [[0] * DICE_PER_PLAYER for _ in range(self.n_players)]
-        print(self.dice)
         self.dice_counts = [DICE_PER_PLAYER for _ in range(self.n_players)]
         self.current_bid = [0, 0]  # quantity, face
         self.history = []  # to store history of bids and actions

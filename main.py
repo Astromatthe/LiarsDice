@@ -13,7 +13,6 @@ def main():
         players[i] = RandomBot(i)
     game = LiarsDiceGame(players)
     game.deal(starting_player=0)
-    print("Dealt dice:", game.dice)
 
     # start GUI (GUI only updates / shows results; main drives bot turns)
     root = tk.Tk()
