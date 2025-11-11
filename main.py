@@ -8,12 +8,12 @@ import random
 ## TEST
 def main():
     # create players: human + 3 random bots
-    players = [None] * 4
-    players[0] = None # human player in GUI
-    for i in range(1, 4):
-        players[i] = RandomBot(i)
-    game = LiarsDiceGame(players)
-    game.deal(starting_player=0)
+    # players = [None] * 4
+    # players[0] = None # human player in GUI
+    # for i in range(1, 4):
+    #     players[i] = RandomBot(i)
+    # game = LiarsDiceGame(players)
+    # game.deal(starting_player=0)
 
     # start GUI (GUI only updates / shows results; main drives bot turns)
     root = tk.Tk()
@@ -90,7 +90,7 @@ def main():
             root.after(300, tick) # 300 ms between ticks
 
         root.after(300, tick)
-        
+
     root.mainloop()
 
 if __name__ == "__main__":

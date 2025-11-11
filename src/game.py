@@ -143,6 +143,7 @@ class LiarsDiceGame:
 
             # End round: determine who starts next round
             # Common rule: loser starts next round if still active, else next active player after loser
+            # TODO: changee to winner starts next round
             if loser is not None and self.dice_counts[loser] > 0:
                 starter = loser
             else:

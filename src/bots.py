@@ -7,9 +7,6 @@ from typing import List, Tuple
 class RandomBot(Player):
     def act(self, game):
         """Makes a random valid action."""
-        # game exposes current bid (q,face) and legal next bids
-        prev_bid, prev_face = game.current_bid
-
         # choose either to call or to make a legal higher bid
         choices = ["call"]
         legal_bids = [] 
