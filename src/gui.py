@@ -50,6 +50,7 @@ class LiarsDiceGUI:
             self.call_button.config(state = "disabled")
 
     def human_bid(self):
+        # TODO: limit input to legal bids
         """ Handle human bid action. """
         try:
             q = int(self.qty_entry.get())
