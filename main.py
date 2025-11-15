@@ -7,14 +7,6 @@ import random
 
 ## TEST
 def main():
-    # create players: human + 3 random bots
-    # players = [None] * 4
-    # players[0] = None # human player in GUI
-    # for i in range(1, 4):
-    #     players[i] = RandomBot(i)
-    # game = LiarsDiceGame(players)
-    # game.deal(starting_player=0)
-
     # start GUI (GUI only updates / shows results; main drives bot turns)
     root = tk.Tk()
     root.title("Liar's Dice")
@@ -42,19 +34,19 @@ def main():
     
     def start_game(root: tk.Tk, mode: str): 
         # create players: human (pid 0) + bots depending on mode
-        players = [None] * 4
+        players = [None] * N_PLAYERS
         players[0] = None # human player in GUI
         if mode == "all_random":
-            for i in range(1, 4):
+            for i in range(1, N_PLAYERS):
                 players[i] = RandomBot(i)
         elif mode == "all_risky":
-            for i in range(1, 4):
+            for i in range(1, N_PLAYERS):
                 players[i] = RiskyBot(i)
         elif mode == "all_risk_averse":
-            for i in range(1, 4):
+            for i in range(1, N_PLAYERS):
                 players[i] = RiskAverseBot(i)
         elif mode == "mixed":
-            for i in range(1, 4):
+            for i in range(1, N_PLAYERS):
                 rand = random.random()
                 if rand < 0.33:
                     players[i] = RandomBot(i)
@@ -64,7 +56,7 @@ def main():
                     players[i] = RiskAverseBot(i)
         else:
             # fallback to all random
-            for i in range(1, 4):
+            for i in range(1, N_PLAYERS):
                 players[i] = RandomBot(i)
 
         game = LiarsDiceGame(players)
