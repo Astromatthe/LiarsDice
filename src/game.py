@@ -3,6 +3,11 @@ from src.rules import *
 import numpy as np
 import random
 from typing import List, Tuple, Dict
+import os
+import csv
+import json
+import datetime
+import uuid
 
 class LiarsDiceGame:
 
@@ -14,7 +19,8 @@ class LiarsDiceGame:
         self.dice = [[0] * DICE_PER_PLAYER for _ in range(self.n_players)]
         self.dice_counts = [DICE_PER_PLAYER for _ in range(self.n_players)]
         self.current_bid = [0, 0]  # quantity, face
-        self.history = []  # to store history of bids and actions
+        self.full_history = []  # to store history of bids and actions
+        self._current_round = None
         self.last_bidder = None
         self.current_player = 0  # index of current player
         self.round_active = False
@@ -37,12 +43,105 @@ class LiarsDiceGame:
                 # eliminated player all zeros
                 self.dice[pid] = [0] * DICE_PER_PLAYER
         self.current_bid = [0, 0]
-        self.history = []
+
+        self._current_round = {
+            "dice": [list(row) for row in self.dice],
+            "bids": [],
+            "resolution": None
+        }
         self.last_bidder = None
         self.current_player = starting_player
         self.round_active = True
-        # full deal: each player gets DICE_PER_PLAYER dice
-        # self.dice = [list(np.random.randint(1, FACE_COUNT + 1, DICE_PER_PLAYER)) for _ in range(N_PLAYERS)]
+    
+    def step(self, actor_id: int, action: Tuple[str, any]):
+        """Perform an action by actor_id. Returns:
+           - None for a completed bid
+           - dict with resolution info when a call is resolved
+        """
+        if self.is_game_over():
+            return {"error": "not_your_turn", "expected": self.current_player}
+
+        # ensure actor is the expected current player
+        if actor_id != self.current_player:
+            return {"error": "not_your_turn", "expected": self.current_player}
+
+        if action[0] == "bid":
+            q, f = action[1]
+            if not is_bid_higher(self.current_bid, [q, f]):
+                return {"error": "invalid_bid", "current_bid": self.current_bid}
+            self.current_bid = [q, f]
+            self._current_round["bids"].append((actor_id, (q, f)))
+            self.last_bidder = actor_id
+            # advance to next active player
+            self.current_player = self.next_active_player(actor_id)
+            return None
+        
+        elif action[0] == "call":
+            # cannot call if no bid has been made
+            if self.current_bid[0] == 0:
+                return {"error": "no_bid_to_call"}
+            # resolve call
+            q, f = self.current_bid
+            actual = count_face_total(self.dice, f)
+            caller = actor_id
+            last_bidder = self.last_bidder
+            result = {
+                "bid": (q, f),
+                "actual": actual,
+                "winner": None,
+                "loser": None,
+                "eliminated": None,
+            }
+            if actual >= q:
+                # last bidder was correct -> caller loses one die
+                result["winner"] = last_bidder
+                result["loser"] = caller
+            else:
+                # last bidder was lying -> last bidder loses one die
+                result["winner"] = caller
+                result["loser"] = last_bidder
+            # apply penalty
+            loser = result["loser"]
+            if loser is not None:
+                self._remove_one_die(loser)
+                if self.dice_counts[loser] == 0:
+                    result["eliminated"] = loser
+            # record history
+            self._current_round["bids"].append((actor_id, "call")) # record the call action
+            self._current_round["resolution"] = result # resolution info
+            self.full_history.append(self._current_round) # append completed round to history
+            self._current_round = None # reset current round
+
+            # End round: determine who starts next round
+            # Common rule: loser starts next round if still active, else next active player after loser
+            if loser is not None and self.dice_counts[loser] > 0:
+                starter = loser
+            else:
+                starter = None
+                if loser is None:
+                    # fallback to next after current caller
+                    starter = self.next_active_player(caller)
+                else:
+                    for i in range(1, self.n_players + 1):
+                        candidate = (loser + i) % self.n_players
+                        if self.dice_counts[candidate] > 0:
+                            starter = candidate
+                            break
+            # reset for next round if game is not over
+            self.round_active = False
+            if not self.is_game_over():
+                self.deal(starting_player=starter)
+            else:
+                # game over
+                winner = self.get_winner()
+                self.full_history.append({"winner": winner})
+                save_path = self.save_history_json()
+                print(f"Game over! Winner: P{winner}. Game history saved to {save_path}")
+                self.current_player = None
+
+            return result
+        else:
+            return {"error": "invalid_action"}
 
     def next_active_player(self, pid: int) -> int:
         """Return next pid with at least one die (wrap-around)."""
@@ -84,87 +183,31 @@ class LiarsDiceGame:
         idx = random.choice(nonzero_indices)
         self.dice[pid][idx] = 0
         self.dice_counts[pid] -= 1
-
-    def step(self, actor_id: int, action: Tuple[str, any]):
-        """Perform an action by actor_id. Returns:
-           - None for a completed bid
-           - dict with resolution info when a call is resolved
+    
+    def save_history_json(self, dir: str = "data") -> str:
         """
-        if self.is_game_over():
-            return {"error": "not_your_turn", "expected": self.current_player}
+        Save the complete game history (self.full_history) into a JSON file.
+        Returns the path to the created JSON file.
+        """
+        os.makedirs(dir, exist_ok=True)
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        gid = f"{ts}_{uuid.uuid4().hex[:6]}"
+        filename = f"game_{gid}.json"
+        path = os.path.join(dir, filename)
 
-        # ensure actor is the expected current player
-        if actor_id != self.current_player:
-            return {"error": "not_your_turn", "expected": self.current_player}
-
-        if action[0] == "bid":
-            q, f = action[1]
-            if not is_bid_higher(self.current_bid, [q, f]):
-                return {"error": "invalid_bid", "current_bid": self.current_bid}
-            self.current_bid = [q, f]
-            self.history.append((actor_id, ("bid", (q, f))))
-            self.last_bidder = actor_id
-            # advance to next active player
-            self.current_player = self.next_active_player(actor_id)
-            return None
-        
-        elif action[0] == "call":
-            # cannot call if no bid has been made
-            if self.current_bid[0] == 0:
-                return {"error": "no_bid_to_call"}
-            # resolve call
-            q, f = self.current_bid
-            actual = count_face_total(self.dice, f)
-            caller = actor_id
-            last_bidder = self.last_bidder
-            result = {
-                "bid": (q, f),
-                "actual": actual,
-                "winner": None,
-                "loser": None,
-                "eliminated": []
-            }
-            if actual >= q:
-                # last bidder was correct -> caller loses one die
-                result["winner"] = last_bidder
-                result["loser"] = caller
-            else:
-                # last bidder was lying -> last bidder loses one die
-                result["winner"] = caller
-                result["loser"] = last_bidder
-            # apply penalty
-            loser = result["loser"]
-            if loser is not None:
-                self._remove_one_die(loser)
-                if self.dice_counts[loser] == 0:
-                    result["eliminated"].append(loser)
-            # record history
-            self.history.append((actor_id, ("call", None)))
-
-            # End round: determine who starts next round
-            # Common rule: loser starts next round if still active, else next active player after loser
-            # TODO: changee to winner starts next round
-            if loser is not None and self.dice_counts[loser] > 0:
-                starter = loser
-            else:
-                starter = None
-                if loser is None:
-                    # fallback to next after current caller
-                    starter = self.next_active_player(caller)
-                else:
-                    for i in range(1, self.n_players + 1):
-                        candidate = (loser + i) % self.n_players
-                        if self.dice_counts[candidate] > 0:
-                            starter = candidate
-                            break
-            # reset for next round if game is not over
-            self.round_active = False
-            if not self.is_game_over():
-                self.deal(starting_player=starter)
-            else:
-                # game over
-                self.current_player = None
-
-            return result
-        else:
-            return {"error": "invalid_action"}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({
+                "game_id": gid,
+                "full_history": self.full_history
+            }, f, ensure_ascii=False, cls=NumpyEncoder, indent=2)
+        return path
+    
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return super().default(obj)

@@ -1,1 +1,7 @@
 LiarsDice.code-workspace
+
+# data
+
+src/__pycache__/
+
+__pycache__
