@@ -3,6 +3,7 @@ import math
 from src.players import Player
 from src.rules import is_bid_higher
 from typing import List, Tuple
+import numpy as np
 
 class RandomBot(Player):
     def act(self, game):
@@ -209,3 +210,24 @@ class ConservativeBot(_StatBot):
         else:
             #print(f"[DEBUG] No safe raises of {own_faces} vs {bid}, calling.")
             return ("call", None) #call if no safe raises exist
+        
+class AggressiveBot(_StatBot):
+    """Aggressive bot from WiLDCARD"""
+
+    def act(self, game):
+        legal = self._legal_bids(game)
+        if not legal:
+            return ("call", None)
+        
+        bid = game.current_bid
+        q, f = bid
+        _, _, own_faces = self._own_info(game)
+
+        rand = np.random.randint(0, 100)
+        if rand < 50 or q == 0:
+            legal_sorted = sorted(legal, key=lambda bf: (bf[0], bf[1]))
+            print(f"[DEBUG] Making bid {legal_sorted[0]} with {own_faces}")
+            return ("bid", legal_sorted[0])
+        else:
+            print(f"[DEBUG] Making call of {own_faces} vs {bid}")
+            return("call", None)

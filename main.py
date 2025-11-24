@@ -1,5 +1,5 @@
 from src.game import LiarsDiceGame
-from src.bots import RandomBot, RiskyBot, RiskAverseBot, ConservativeBot
+from src.bots import RandomBot, RiskyBot, RiskAverseBot, ConservativeBot, AggressiveBot
 from src.gui import LiarsDiceGUI
 #from src.state import *
 import tkinter as tk
@@ -34,6 +34,8 @@ def main():
              width = 30, command = lambda: select_mode("mixed")).pack(pady=3)
     tk.Button(start_frame, text = "All Wildcard Conservative Bots",
              width = 30, command = lambda: select_mode("all_cons")).pack(pady=3)
+    tk.Button(start_frame, text = "All Wildcard Aggressive Bots",
+             width = 30, command = lambda: select_mode("all_agg")).pack(pady=3)
     
     def start_game(root: tk.Tk, mode: str): 
         # create players: human (pid 0) + bots depending on mode
@@ -60,6 +62,9 @@ def main():
         elif mode == "all_cons":
             for i in range(1, N_PLAYERS):
                 players[i] = ConservativeBot(i)
+        elif mode == "all_agg":
+            for i in range(1, N_PLAYERS):
+                players[i] = AggressiveBot(i)
         else:
             # fallback to all random
             for i in range(1, N_PLAYERS):
