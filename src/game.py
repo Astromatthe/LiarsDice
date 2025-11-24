@@ -35,6 +35,8 @@ def _create_players_from_types(types: List[str]) -> List[object]:
                 players[i] = RiskyBot(i)
             elif tt in ("con", "conservative", "risk_averse", "risk-averse"):
                 players[i] = RiskAverseBot(i)
+            elif tt in ("wildcard conservative", "wildcard_conservative", "wildcard-conservative"):
+                players[i] = ConservativeWiLDCARDBot(i)
             else:
                 raise ValueError(f"Unknown player type: {t} at position {i}")
         return players
@@ -205,7 +207,13 @@ class LiarsDiceGame:
                         app.show_round_result(res)
                 root.after(1000, tick)  # check again after 100 ms
             root.after(1000, tick)
-            root.mainloop()
+            try: 
+                root.mainloop()
+            finally:
+                try:
+                    root.destroy()
+                except Exception:
+                    pass
             
         else:
             # Headless bots-only loop

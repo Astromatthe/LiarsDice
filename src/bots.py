@@ -171,3 +171,37 @@ class RiskAverseBot(_StatBot):
                 return ("bid", candidate)
         # if none reasonable, pick the minimal increase
         return ("bid", legal_sorted[0])
+    
+class ConservativeWiLDCARDBot(_StatBot):
+    """
+    Bot that is consistent with the implementstion of the conservative bot for the WiLDCARD team.
+    (See paper: At each state, the agent only takes actions consistent with their
+    knowledge of their own dice, calling bluff on the current bid if no such actions exist.)
+    """
+    def _is_consistent(self, game, bid: List[int]) -> bool:
+        """Check if a bid is consistent with own dice (i.e., could be true given own dice)."""
+        q,f = bid
+        active_total, own_count, own_faces = self._own_info(game)
+        own_known = sum(1 for d in own_faces if d == f)
+        unknown = active_total - own_count
+        required = q - own_known
+        return required <= unknown  # consistent if we could possibly meet the bid
+    
+    def act(self, game):
+        legal = self._legal_bids(game)
+        if not legal:
+            return ("call", None)
+        
+        current_bid = game.current_bid
+        q_curr, f_curr = current_bid
+
+        # filter legal bids to those consistent with own dice
+        consistent_bids = [bid for bid in legal if self._is_consistent(game, bid)]
+
+        # if any consistent bids, pick the most conservative (lowest q, then lowest f)
+        if consistent_bids:
+            chosen = sorted(consistent_bids, key=lambda bf: (bf[0], bf[1]))[0]
+            return ("bid", chosen)
+
+        # no consistent bids, must call
+        return ("call", None)
