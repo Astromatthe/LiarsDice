@@ -96,4 +96,10 @@ class LiarsDiceGUI:
     def show_game_over(self, winner: int):
         """Display game over message."""
         messagebox.showinfo("Game Over", f"Player P{winner} wins the game!")
-        self.root.quit()
+        try:
+            self.root.destroy()
+        except Exception:
+            try:
+                self.root.quit()
+            except Exception:
+                pass
