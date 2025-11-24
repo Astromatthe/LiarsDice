@@ -1,7 +1,7 @@
 from src.game import LiarsDiceGame
-from src.bots import RandomBot, RiskyBot, RiskAverseBot
+from src.bots import RandomBot, RiskyBot, RiskAverseBot, ConservativeBot
 from src.gui import LiarsDiceGUI
-from src.state import *
+#from src.state import *
 import tkinter as tk
 import random
 
@@ -10,6 +10,7 @@ def main():
     # start GUI (GUI only updates / shows results; main drives bot turns)
     root = tk.Tk()
     root.title("Liar's Dice")
+    N_PLAYERS = 4
 
     selected = {"mode": None}
 
@@ -31,6 +32,8 @@ def main():
              width = 30, command = lambda: select_mode("all_risk_averse")). pack(pady=3)
     tk.Button(start_frame, text = "Mixed Bots",
              width = 30, command = lambda: select_mode("mixed")).pack(pady=3)
+    tk.Button(start_frame, text = "All Wildcard Conservative Bots",
+             width = 30, command = lambda: select_mode("all_cons")).pack(pady=3)
     
     def start_game(root: tk.Tk, mode: str): 
         # create players: human (pid 0) + bots depending on mode
@@ -54,6 +57,9 @@ def main():
                     players[i] = RiskyBot(i)
                 else:
                     players[i] = RiskAverseBot(i)
+        elif mode == "all_cons":
+            for i in range(1, N_PLAYERS):
+                players[i] = ConservativeBot(i)
         else:
             # fallback to all random
             for i in range(1, N_PLAYERS):

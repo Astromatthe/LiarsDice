@@ -171,3 +171,41 @@ class RiskAverseBot(_StatBot):
                 return ("bid", candidate)
         # if none reasonable, pick the minimal increase
         return ("bid", legal_sorted[0])
+    
+class ConservativeBot(_StatBot):
+    """Conservative Bot from WiLDCARD"""
+
+    def act(self, game):
+        legal = self._legal_bids(game)
+        if not legal:
+            return ("call", None)
+        
+        bid = game.current_bid
+        q,f = bid
+        _, _, own_faces = self._own_info(game)
+        counts = {}
+        if own_faces:
+            for d in own_faces:
+                counts[d] = counts.get(d,0) + 1
+            preferred_face = max(counts, key=counts.get) if counts else None
+
+        if q==0: #opening bid
+            if preferred_face is None:
+                preferred_face = random.randint(1,6)
+            q_choice = 1
+
+            if is_bid_higher(bid, [q_choice, preferred_face]):
+                return ("bid", [q_choice, preferred_face])
+            else:
+                bid_choice = random.choice(legal)
+                return ("bid", bid_choice)
+
+        #conservative raise
+        safe_raises = [(n,f) for (n,f) in legal if n <= counts.get(f,0) and is_bid_higher(bid, (n,f))]
+        if safe_raises:
+            safe_raises.sort(key=lambda bf: (bf[0], bf[1]))
+            #print(f"[DEBUG] Bot bidding {safe_raises[0]} with {own_faces}.")
+            return ("bid", safe_raises[0])
+        else:
+            #print(f"[DEBUG] No safe raises of {own_faces} vs {bid}, calling.")
+            return ("call", None) #call if no safe raises exist
