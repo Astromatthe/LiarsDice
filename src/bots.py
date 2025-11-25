@@ -3,6 +3,7 @@ import math
 from src.players import Player
 from src.rules import is_bid_higher
 from typing import List, Tuple
+import numpy as np
 
 class RandomBot(Player):
     def act(self, game):
@@ -172,36 +173,61 @@ class RiskAverseBot(_StatBot):
         # if none reasonable, pick the minimal increase
         return ("bid", legal_sorted[0])
     
-class ConservativeWiLDCARDBot(_StatBot):
-    """
-    Bot that is consistent with the implementstion of the conservative bot for the WiLDCARD team.
-    (See paper: At each state, the agent only takes actions consistent with their
-    knowledge of their own dice, calling bluff on the current bid if no such actions exist.)
-    """
-    def _is_consistent(self, game, bid: List[int]) -> bool:
-        """Check if a bid is consistent with own dice (i.e., could be true given own dice)."""
-        q,f = bid
-        active_total, own_count, own_faces = self._own_info(game)
-        own_known = sum(1 for d in own_faces if d == f)
-        unknown = active_total - own_count
-        required = q - own_known
-        return required <= unknown  # consistent if we could possibly meet the bid
-    
+class ConservativeBot(_StatBot):
+    """Conservative Bot from WiLDCARD"""
+
     def act(self, game):
         legal = self._legal_bids(game)
         if not legal:
             return ("call", None)
         
-        current_bid = game.current_bid
-        q_curr, f_curr = current_bid
+        bid = game.current_bid
+        q,f = bid
+        _, _, own_faces = self._own_info(game)
+        counts = {}
+        if own_faces:
+            for d in own_faces:
+                counts[d] = counts.get(d,0) + 1
+            preferred_face = max(counts, key=counts.get) if counts else None
 
-        # filter legal bids to those consistent with own dice
-        consistent_bids = [bid for bid in legal if self._is_consistent(game, bid)]
+        if q==0: #opening bid
+            if preferred_face is None:
+                preferred_face = random.randint(1,6)
+            q_choice = 1
 
-        # if any consistent bids, pick the most conservative (lowest q, then lowest f)
-        if consistent_bids:
-            chosen = sorted(consistent_bids, key=lambda bf: (bf[0], bf[1]))[0]
-            return ("bid", chosen)
+            if is_bid_higher(bid, [q_choice, preferred_face]):
+                return ("bid", [q_choice, preferred_face])
+            else:
+                bid_choice = random.choice(legal)
+                return ("bid", bid_choice)
 
-        # no consistent bids, must call
-        return ("call", None)
+        #conservative raise
+        safe_raises = [(n,f) for (n,f) in legal if n <= counts.get(f,0) and is_bid_higher(bid, (n,f))]
+        if safe_raises:
+            safe_raises.sort(key=lambda bf: (bf[0], bf[1]))
+            #print(f"[DEBUG] Bot bidding {safe_raises[0]} with {own_faces}.")
+            return ("bid", safe_raises[0])
+        else:
+            #print(f"[DEBUG] No safe raises of {own_faces} vs {bid}, calling.")
+            return ("call", None) #call if no safe raises exist
+        
+class AggressiveBot(_StatBot):
+    """Aggressive bot from WiLDCARD"""
+
+    def act(self, game):
+        legal = self._legal_bids(game)
+        if not legal:
+            return ("call", None)
+        
+        bid = game.current_bid
+        q, f = bid
+        _, _, own_faces = self._own_info(game)
+
+        rand = np.random.randint(0, 100)
+        if rand < 50 or q == 0:
+            legal_sorted = sorted(legal, key=lambda bf: (bf[0], bf[1]))
+            print(f"[DEBUG] Making bid {legal_sorted[0]} with {own_faces}")
+            return ("bid", legal_sorted[0])
+        else:
+            print(f"[DEBUG] Making call of {own_faces} vs {bid}")
+            return("call", None)
