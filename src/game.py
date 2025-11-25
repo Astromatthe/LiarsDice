@@ -19,6 +19,8 @@ def _create_players_from_types(types: List[str]) -> List[object]:
         - "rand", "random" -> RandomBot
         - "risky", "risk" -> RiskyBot
         - "con", "conservative", "risk_averse" -> RiskAverseBot
+        - "wildcard_conservative", "wildcard conservative" -> ConservativeBot
+        - "aggressive", "wildcard_risky", "wildcard risky" -> AggressiveBot
         Returns list of player objects / None for human.
         """
         if len(types) != N_PLAYERS:

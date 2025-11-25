@@ -160,7 +160,7 @@ class RiskAverseBot(_StatBot):
             
         prob = self._prob_bid_true(game, bid)
         # risk-averse threshhold: call if less likely
-        if prob < 0.60:
+        if prob < 0.05:
             return ("call", None)
         
         # otherwise, make conservative minimal raise: pick smallest legal bid by (q, face) order
@@ -168,7 +168,7 @@ class RiskAverseBot(_StatBot):
         # prefer bids with reasonable probability
         for candidate in legal_sorted:
             cand_prob = self._prob_bid_true(game, candidate)
-            if cand_prob >= 0.5:
+            if cand_prob >= 0.90:
                 return ("bid", candidate)
         # if none reasonable, pick the minimal increase
         return ("bid", legal_sorted[0])
