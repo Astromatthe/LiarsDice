@@ -36,7 +36,9 @@ def _create_players_from_types(types: List[str]) -> List[object]:
             elif tt in ("con", "conservative", "risk_averse", "risk-averse"):
                 players[i] = RiskAverseBot(i)
             elif tt in ("wildcard conservative", "wildcard_conservative", "wildcard-conservative"):
-                players[i] = ConservativeWiLDCARDBot(i)
+                players[i] = ConservativeBot(i)
+            elif tt in ("aggressive","wildcard risky", "wildcard_risky", "wildcard-risky"):
+                players[i] = AggressiveBot(i)
             else:
                 raise ValueError(f"Unknown player type: {t} at position {i}")
         return players
