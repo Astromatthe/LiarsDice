@@ -1,5 +1,5 @@
 from config import FACE_COUNT
-from typing import List, Tuple
+from typing import List
 
 
 def encode_rl_state(

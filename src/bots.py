@@ -2,7 +2,7 @@ import random
 import math
 from src.players import Player
 from src.rules import is_bid_higher
-from typing import List, Tuple
+from typing import List
 import numpy as np
 
 class RandomBot(Player):
