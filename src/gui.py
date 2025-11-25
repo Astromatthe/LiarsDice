@@ -15,6 +15,18 @@ class LiarsDiceGUI:
         self.info_label = tk.Label(root, text="")
         self.info_label.pack()
 
+        # show other players dice toggle
+        self.controls_frame = tk.Frame(root)
+        self.controls_frame.pack(pady=4)
+        self.show_others_var = tk.BooleanVar(value=False)
+        self.show_others_cb = tk.Checkbutton(
+            self.controls_frame,
+            text="Show other players' dice",
+            variable=self.show_others_var,
+            command=self.update_ui
+        )
+        self.show_others_cb.pack(side="left")
+
         self.dice_frame = tk.Frame(root)
         self.dice_frame.pack()
         self.dice_labels = []
@@ -36,16 +48,33 @@ class LiarsDiceGUI:
         self.call_button = tk.Button(self.bid_frame, text="Call", command=self.human_call)
         self.call_button.grid(row=0, column=5, padx=5)
 
+        self.message_label= tk.Label(root, text="", justify="left", wraplength=400, fg = "blue")
+        self.message_label.pack(pady=6)
+
+        self.update_ui()
+
     def update_ui(self):
         """ Update the UI elements based on the current game state. """
-        self.info_label.config(text=f"Current Player: P{self.game.current_player}, Current Bid: {self.game.current_bid}")
+        cur = self.game.current_player
+        bid = self.game.current_bid
+        self.info_label.config(text=f"Current Player: P{cur if cur is not None else '-'}, Current Bid: {bid}")
+        show_others = self.show_others_var.get()
         for i, lbl in enumerate(self.dice_labels):
-            lbl.config(text=f"P{i}: {self.game.dice[i]}")
+            if i == 0 or show_others:
+                lbl.config(text=f"P{i}: {self.game.dice[i]}")
+            else:
+                # show '?' for each hidden die; if a die has been removed/marked (0 or None) show 'X'
+                hidden_str = ''.join('X' if d == 0 or d is None else '?' for d in self.game.dice[i])
+                lbl.config(text=f"P{i}: {hidden_str}")
         # enable/disable human controls depending on turn
         if self.game.current_player == 0:
             self.bid_button.config(state = "normal")
             self.call_button.config(state = "normal")
         else:
+            self.bid_button.config(state = "disabled")
+            self.call_button.config(state = "disabled")
+        if self.game.current_player is None:
+            # game over
             self.bid_button.config(state = "disabled")
             self.call_button.config(state = "disabled")
 
@@ -83,17 +112,33 @@ class LiarsDiceGUI:
         action = bot.act(self.game)
         res = self.game.step(self.game.current_player, action)
         self.update_ui()
+        # if round ended, show result in GUI
+        if isinstance(res, dict) and "actual" in res:
+            self.show_round_result(res)
+        # if game ended, show game over
+        if isinstance(res, dict) and res.get("winner") is not None and self.game.current_player is None:
+            # some game implementations may set current_player to None on game over
+            self.show_game_over(res.get("winner"))
         return res
     
     def show_round_result(self, res: dict):
         """Display the result of a round after a call."""
         msg = f"Bid {res['bid']} actual: {res.get('actual')}\nWinner: P{res.get('winner')}\nLoser: P{res.get('loser')}"
         if res.get("eliminated"):
-            msg += f"\nEliminated: {res['eliminated']}"
-        messagebox.showinfo("Round Result", msg)
+            msg += f"\nEliminated: P{res['eliminated']}"
+        # show in GUI instead of messagebox
+        self.message_label.config(text=msg, fg="white")
         self.update_ui()
 
     def show_game_over(self, winner: int):
-        """Display game over message."""
-        messagebox.showinfo("Game Over", f"Player P{winner} wins the game!")
-        self.root.quit()
+        """Display game over message in the GUI and disable controls."""
+        self.message_label.config(text=f"Game Over — Player P{winner} wins the game!", fg="red")
+        # disable the controls so user cannot continue interacting
+        try:
+            self.bid_button.config(state="disabled")
+            self.call_button.config(state="disabled")
+            self.show_others_cb.config(state="disabled")
+        except Exception:
+            pass
+        # leave window open so user can see final state
+        self.update_ui()

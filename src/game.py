@@ -1,18 +1,51 @@
 from config import *
 from src.rules import *
+from src.bots import *
 import numpy as np
 import random
 from typing import List, Tuple, Dict
 import os
-import csv
 import json
 import datetime
+import time
+import tkinter as tk
 import uuid
+
+def _create_players_from_types(types: List[str]) -> List[object]:
+        """
+        types: list/tuple of strings length N_PLAYERS.
+        Supported tokens:
+        - "human", "h" -> human player (None in players list; GUI will handle)
+        - "rand", "random" -> RandomBot
+        - "risky", "risk" -> RiskyBot
+        - "con", "conservative", "risk_averse" -> RiskAverseBot
+        Returns list of player objects / None for human.
+        """
+        if len(types) != N_PLAYERS:
+            raise ValueError(f"Expected {N_PLAYERS} player types, got {len(types)}")
+        
+        players = [None] * N_PLAYERS
+        for i, t in enumerate(types):
+            tt = (t or "").strip().lower()
+            if tt in ("human", "h"):
+                players[i] = None  # human player
+            elif tt in ("rand", "random"):
+                players[i] = RandomBot(i)
+            elif tt in ("risky", "risk"):
+                players[i] = RiskyBot(i)
+            elif tt in ("con", "conservative", "risk_averse", "risk-averse"):
+                players[i] = RiskAverseBot(i)
+            elif tt in ("wildcard conservative", "wildcard_conservative", "wildcard-conservative"):
+                players[i] = ConservativeWiLDCARDBot(i)
+            else:
+                raise ValueError(f"Unknown player type: {t} at position {i}")
+        return players
 
 class LiarsDiceGame:
 
-    def __init__(self, players):
+    def __init__(self, players, player_types: List[str] | None = None):
         self.players = players
+        self.player_types = player_types or self.infer_player_types()
         self.n_players = N_PLAYERS
         # maintain per-player dice list 
         self.total_dice = TOTAL_DICE
@@ -112,6 +145,13 @@ class LiarsDiceGame:
             self.full_history.append(self._current_round) # append completed round to history
             self._current_round = None # reset current round
 
+            # If the game just ended (only one or zero active players), don't compute a starter
+            # (calling next_active_player when no other active player exists would loop indefinitely).
+            if self.is_game_over():
+                self.current_player = None
+                self.round_active = False
+                return result
+
             # End round: determine who starts next round
             # Common rule: loser starts next round if still active, else next active player after loser
             if loser is not None and self.dice_counts[loser] > 0:
@@ -131,17 +171,69 @@ class LiarsDiceGame:
             self.round_active = False
             if not self.is_game_over():
                 self.deal(starting_player=starter)
-            else:
-                # game over
-                winner = self.get_winner()
-                self.full_history.append({"winner": winner})
-                save_path = self.save_history_json()
-                print(f"Game over! Winner: P{winner}. Game history saved to {save_path}")
-                self.current_player = None
-
             return result
         else:
             return {"error": "invalid_action"}
+    
+    @classmethod
+    def game(cls,*player_types, save_json: bool = True, dir: str = "data") -> int | None:
+        """
+        Start and run a full game given player types.
+        Example: game("human", "con", "rand", "con")
+        Returns winner pid (int) or None if no winner.
+        Note: bot objects are created here; bots must implement act(game) -> action tuple.
+        """
+        types = list(player_types)
+        players = _create_players_from_types(types)
+        g = cls(players)
+        g.deal(starting_player=0)
+
+        # If any human present -> use GUI (blocking until GUI exit), else run headless bots-only loop
+        if any(p is None for p in players):
+            from src.gui import LiarsDiceGUI
+            root = tk.Tk()
+            root.title("Liar's Dice")
+            app = LiarsDiceGUI(root, g, players)
+            app.update_ui()
+
+            def tick():
+                if g.is_game_over():
+                    winner = g.get_winner()
+                    app.show_game_over(winner)
+                    return
+                if g.current_player is not None and g.current_player !=0:
+                    res = app.process_bot_action()
+                    if isinstance(res, dict) and not res.get("error") and "actual" in res:
+                        app.show_round_result(res)
+                root.after(1000, tick)  # check again after 100 ms
+            root.after(1000, tick)
+            try: 
+                root.mainloop()
+            finally:
+                try:
+                    root.destroy()
+                except Exception:
+                    pass
+            
+        else:
+            # Headless bots-only loop
+            while not g.is_game_over():
+                cp = g.current_player
+                if cp is None:
+                    break
+                bot = players[cp]
+                if bot is None:
+                    raise RuntimeError("Human turn encountered in headless mode")
+                action = bot.act(g)
+                res = g.step(cp, action)
+
+        # game over
+        winner = g.get_winner()
+        g.full_history.append({"winner": winner})
+        if save_json:
+            save_path = g.save_history_json(dir=dir)
+            print(f"Game over! Winner: P{winner}. Game history saved to {save_path}")
+        return g.get_winner()
 
     def next_active_player(self, pid: int) -> int:
         """Return next pid with at least one die (wrap-around)."""
@@ -184,6 +276,25 @@ class LiarsDiceGame:
         self.dice[pid][idx] = 0
         self.dice_counts[pid] -= 1
     
+    def infer_player_types(self) -> List[str]:
+        """
+        Infer player types from self.players list.
+        Returns list of strings with player types.
+        """
+        types = []
+        for p in self.players:
+            if p is None:
+                types.append("human")
+            elif isinstance(p, RandomBot):
+                types.append("rand")
+            elif isinstance(p, RiskyBot):
+                types.append("risky")
+            elif isinstance(p, RiskAverseBot):
+                types.append("conservative")
+            else:
+                types.append("unknown")
+        return types
+    
     def save_history_json(self, dir: str = "data") -> str:
         """
         Save the complete game history (self.full_history) into a JSON file.
@@ -198,6 +309,7 @@ class LiarsDiceGame:
         with open(path, "w", encoding="utf-8") as f:
             json.dump({
                 "game_id": gid,
+                "player_types": self.player_types,
                 "full_history": self.full_history
             }, f, ensure_ascii=False, cls=NumpyEncoder, indent=2)
         return path
