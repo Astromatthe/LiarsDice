@@ -226,8 +226,8 @@ class AggressiveBot(_StatBot):
         rand = np.random.randint(0, 100)
         if rand < 50 or q == 0:
             legal_sorted = sorted(legal, key=lambda bf: (bf[0], bf[1]))
-            print(f"[DEBUG] Making bid {legal_sorted[0]} with {own_faces}")
+            # print(f"[DEBUG] Making bid {legal_sorted[0]} with {own_faces}")
             return ("bid", legal_sorted[0])
         else:
-            print(f"[DEBUG] Making call of {own_faces} vs {bid}")
+            # print(f"[DEBUG] Making call of {own_faces} vs {bid}")
             return("call", None)
