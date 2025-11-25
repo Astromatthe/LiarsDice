@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
 from src.game import LiarsDiceGame
-from src.bots import RandomBot
 
 class LiarsDiceGUI:
     def __init__(self, root: tk.Tk, game: LiarsDiceGame, players: list):

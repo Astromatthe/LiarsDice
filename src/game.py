@@ -3,11 +3,10 @@ from src.rules import *
 from src.bots import *
 import numpy as np
 import random
-from typing import List, Tuple, Dict
+from typing import List, Tuple
 import os
 import json
 import datetime
-import time
 import tkinter as tk
 import uuid
 
@@ -19,12 +18,14 @@ def _create_players_from_types(types: List[str]) -> List[object]:
         - "rand", "random" -> RandomBot
         - "risky", "risk" -> RiskyBot
         - "con", "conservative", "risk_averse" -> RiskAverseBot
+        - "wildcard_conservative", "wildcard conservative" -> ConservativeBot
+        - "aggressive", "wildcard_risky", "wildcard risky" -> AggressiveBot
         Returns list of player objects / None for human.
         """
-        if len(types) != N_PLAYERS:
-            raise ValueError(f"Expected {N_PLAYERS} player types, got {len(types)}")
+        if len(types) <= 1:
+            raise ValueError("At least two player types must be specified")
         
-        players = [None] * N_PLAYERS
+        players = [None] * len(types)
         for i, t in enumerate(types):
             tt = (t or "").strip().lower()
             if tt in ("human", "h"):
@@ -48,9 +49,9 @@ class LiarsDiceGame:
     def __init__(self, players, player_types: List[str] | None = None):
         self.players = players
         self.player_types = player_types or self.infer_player_types()
-        self.n_players = N_PLAYERS
+        self.n_players = len(players)
         # maintain per-player dice list 
-        self.total_dice = TOTAL_DICE
+        self.total_dice = DICE_PER_PLAYER * self.n_players
         self.dice = [[0] * DICE_PER_PLAYER for _ in range(self.n_players)]
         self.dice_counts = [DICE_PER_PLAYER for _ in range(self.n_players)]
         self.current_bid = [0, 0]  # quantity, face
@@ -293,6 +294,10 @@ class LiarsDiceGame:
                 types.append("risky")
             elif isinstance(p, RiskAverseBot):
                 types.append("conservative")
+            elif isinstance(p, ConservativeBot):
+                types.append("wildcard_conservative")
+            elif isinstance(p, AggressiveBot):
+                types.append("wildcard_risky")
             else:
                 types.append("unknown")
         return types

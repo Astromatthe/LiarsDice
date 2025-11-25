@@ -2,7 +2,7 @@ import random
 import math
 from src.players import Player
 from src.rules import is_bid_higher
-from typing import List, Tuple
+from typing import List
 import numpy as np
 
 class RandomBot(Player):
@@ -160,7 +160,7 @@ class RiskAverseBot(_StatBot):
             
         prob = self._prob_bid_true(game, bid)
         # risk-averse threshhold: call if less likely
-        if prob < 0.60:
+        if prob < 0.05:
             return ("call", None)
         
         # otherwise, make conservative minimal raise: pick smallest legal bid by (q, face) order
@@ -168,7 +168,7 @@ class RiskAverseBot(_StatBot):
         # prefer bids with reasonable probability
         for candidate in legal_sorted:
             cand_prob = self._prob_bid_true(game, candidate)
-            if cand_prob >= 0.5:
+            if cand_prob >= 0.90:
                 return ("bid", candidate)
         # if none reasonable, pick the minimal increase
         return ("bid", legal_sorted[0])
@@ -226,8 +226,8 @@ class AggressiveBot(_StatBot):
         rand = np.random.randint(0, 100)
         if rand < 50 or q == 0:
             legal_sorted = sorted(legal, key=lambda bf: (bf[0], bf[1]))
-            print(f"[DEBUG] Making bid {legal_sorted[0]} with {own_faces}")
+            # print(f"[DEBUG] Making bid {legal_sorted[0]} with {own_faces}")
             return ("bid", legal_sorted[0])
         else:
-            print(f"[DEBUG] Making call of {own_faces} vs {bid}")
+            # print(f"[DEBUG] Making call of {own_faces} vs {bid}")
             return("call", None)
