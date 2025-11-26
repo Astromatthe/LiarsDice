@@ -3,9 +3,11 @@ from config import N_PLAYERS, DICE_PER_PLAYER, TOTAL_DICE
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskAverseBot, RiskyBot
 from src.beliefs import OpponentBelief
-from src.encode import encode_rl_state, encode_rl_action, decode_rl_action
+from src.encode import encode_rl_state, decode_rl_action, decode_rl_state, encode_rl_action
+from src.rules import is_bid_higher
 import random
 import numpy as np
+from config import FACE_COUNT
 
 
 class LiarsDiceEnv:
@@ -250,27 +252,34 @@ class LiarsDiceEnv:
 
         return reward, done
     
-    def get_legal_action_indices(self):
+
+def get_legal_action_indices(state_vec):
         """
-        Return a numpy array of integer action indices that are legal from the current
-        game state for the RL agent.
+        Given an encoded RL state vector, return all legal action indices
+        (same format as env.get_legal_action_indices(), but independent of env).
         """
 
-        legal_indices = []
+        decoded = decode_rl_state(state_vec)
 
-        game = self.game
-        rl_id = self.rl_id
+        total_dice = decoded["total_dice"]
+        current_bid = decoded["current_bid"]
+        terminal_flag = decoded["terminal_flag"]
 
-        if game.current_bid not in (None, [0, 0], (0, 0)):
-            call_idx = encode_rl_action(("call", None))
-            legal_indices.append(call_idx)
+        legal_actions = []
 
-        legal_bids = game.get_legal_bids()
+        # no legal actions from terminal state
+        if terminal_flag == 1 or total_dice <= 1:
+            return np.array([], dtype = np.int64)
+        
+        # call is legal if someone has bid
+        if current_bid not in (None, [0,0], (0,0)):
+                call_idx = encode_rl_action(("call", None))
+                legal_actions.append(call_idx)
 
-        for bid in legal_bids:
-            idx = encode_rl_action(("bid",bid))
-            legal_indices.append(idx)
-
-        return np.array(legal_indices, dtype = np.int64)
-
-
+        for q in range(1, total_dice + 1):
+            for f in range(1, FACE_COUNT + 1):
+                if is_bid_higher(current_bid, [q, f]):
+                    idx = encode_rl_action(("bid", [q, f]))
+                    legal_actions.append(idx)
+        
+        return np.array(legal_actions, dtype=np.int64)
