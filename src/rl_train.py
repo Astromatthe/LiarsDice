@@ -2,11 +2,13 @@ import random
 from collections import deque
 import torch
 import numpy as np
-from rl_env import LiarsDiceEnv, get_legal_action_indices
+from src.rl_env import LiarsDiceEnv, get_legal_action_indices
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from config import NUM_ACTIONS
+import matplotlib.pyplot as plt
+
 
 class DQN(nn.Module):
     """
@@ -175,10 +177,14 @@ def train_dqn(
 
     step_count = 0
 
+    wins = 0
+
+    win_rate_history = []
+
     ### Main Training Loop ###
 
     for episode in range(episodes):
-
+        print(f"\rCurrent episode: {episode+1}", end="", flush=True)
         state = env.reset()
         done = False
 
@@ -209,8 +215,27 @@ def train_dqn(
                 target_net.load_state_dict(policy_net.state_dict())
             
         epsilon = max(epsilon_min, epsilon * epsilon_decay)
+        winner = env.game.get_winner()
+
+        if winner is not None and winner == env.rl_id:
+            wins += 1
+        win_rate = wins / (episode + 1)
+        win_rate_history.append(win_rate)
+
+
+    print()
+
+    plt.plot(win_rate_history)
+    plt.xlabel("Episode")
+    plt.ylabel("Cumulative Win Rate")
+    plt.title("DQN RL-Bot Win Rate vs Training Episodes")
+    plt.show()
 
     return policy_net, target_net
+
+
+    
+
 
 
         

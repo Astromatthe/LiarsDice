@@ -11,7 +11,7 @@ import uuid
 
 class LiarsDiceGame:
 
-    def __init__(self, players):
+    def __init__(self, players, save_history=True):
         self.players = players
         self.n_players = N_PLAYERS
         # maintain per-player dice list 
@@ -24,6 +24,7 @@ class LiarsDiceGame:
         self.last_bidder = None
         self.current_player = 0  # index of current player
         self.round_active = False
+        self.save_history = save_history
     
     def active_players(self) -> List[int]:
         """Returns a list of active player indices."""
@@ -135,8 +136,10 @@ class LiarsDiceGame:
                 # game over
                 winner = self.get_winner()
                 self.full_history.append({"winner": winner})
-                save_path = self.save_history_json()
-                print(f"Game over! Winner: P{winner}. Game history saved to {save_path}")
+
+                if self.save_history:
+                    save_path = self.save_history_json()
+                    print(f"Game over! Winner: P{winner}. Game history saved to {save_path}")
                 self.current_player = None
 
             return result

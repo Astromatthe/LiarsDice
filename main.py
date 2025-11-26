@@ -1,7 +1,8 @@
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskyBot, RiskAverseBot
 from src.gui import LiarsDiceGUI
-from src.state import *
+#from src.state import *
+from config import N_PLAYERS
 import tkinter as tk
 import random
 
@@ -86,4 +87,36 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    import time
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train", action="store_true",
+                        help="Run the DQN training loop instead of launching GUI")
+    parser.add_argument("--episodes", type=int, default=1000)
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--gamma", type=float, default=0.99)
+    parser.add_argument("--batch", type=int, default=64)
+    parser.add_argument("--buffer", type=int, default=10000)
+
+    args = parser.parse_args()
+
+    if args.train:
+        from src.rl_train import train_dqn
+        start_time = time.perf_counter()
+        policy, target = train_dqn(
+            episodes=args.episodes,
+            batch_size=args.batch,
+            learning_rate=args.lr,
+            gamma=args.gamma,
+            epsilon_start=1.0,
+            epsilon_min=0.01,
+            epsilon_decay=0.995,
+            target_update_freq=1000,
+            memory_size=args.buffer
+        )
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time
+        print(f"Training time: {elapsed_time:.2f} s")
+    else:
+        main()   # launches GUI mode

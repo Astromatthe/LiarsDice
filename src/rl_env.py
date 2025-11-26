@@ -3,7 +3,7 @@ from config import N_PLAYERS, DICE_PER_PLAYER, TOTAL_DICE
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskAverseBot, RiskyBot
 from src.beliefs import OpponentBelief
-from src.encode import encode_rl_state, decode_rl_action, decode_rl_state, encode_rl_action
+from src.encode import encode_rl_state, decode_rl_action, encode_rl_action
 from src.rules import is_bid_higher
 import random
 import numpy as np
@@ -23,7 +23,7 @@ class LiarsDiceEnv:
             else:
                 self.players[pid] = RandomBot(pid)
         
-        self.game = LiarsDiceGame(self.players)
+        self.game = LiarsDiceGame(self.players, save_history=False)
 
         # Each non-rlbot player gets uniform dirichlet prior
         self.opponent_beliefs = {
@@ -34,7 +34,7 @@ class LiarsDiceEnv:
     def reset(self, starting_player: int = None):
         # restart game without having to rebuild player list
 
-        self.game = LiarsDiceGame(self.players)
+        self.game = LiarsDiceGame(self.players, save_history = False)
 
         if starting_player is None:
             starting_player = random.randrange(N_PLAYERS)
@@ -128,6 +128,10 @@ class LiarsDiceEnv:
             return self._observe(), reward, done, info
         
         opp_id = self.game.current_player
+
+        if opp_id == self.rl_id:
+            return self._observe(), reward, done, info
+
         opp_bot = self.players[opp_id]
         opp_act = opp_bot.act(self.game)
 
@@ -258,13 +262,15 @@ def get_legal_action_indices(state_vec):
         Given an encoded RL state vector, return all legal action indices
         (same format as env.get_legal_action_indices(), but independent of env).
         """
+        
 
-        decoded = decode_rl_state(state_vec)
+        total_dice = state_vec[0]
+        current_bid_q = state_vec[8]
+        current_bid_f = state_vec[9]
+        terminal_flag = state_vec[-1]
 
-        total_dice = decoded["total_dice"]
-        current_bid = decoded["current_bid"]
-        terminal_flag = decoded["terminal_flag"]
-
+        current_bid = [current_bid_q, current_bid_f]
+        
         legal_actions = []
 
         # no legal actions from terminal state
@@ -272,14 +278,14 @@ def get_legal_action_indices(state_vec):
             return np.array([], dtype = np.int64)
         
         # call is legal if someone has bid
-        if current_bid not in (None, [0,0], (0,0)):
-                call_idx = encode_rl_action(("call", None))
+        if (current_bid_q > 0) and (current_bid_f > 0):
+                call_idx = encode_rl_action("call")
                 legal_actions.append(call_idx)
 
         for q in range(1, total_dice + 1):
             for f in range(1, FACE_COUNT + 1):
                 if is_bid_higher(current_bid, [q, f]):
-                    idx = encode_rl_action(("bid", [q, f]))
+                    idx = encode_rl_action([q, f])
                     legal_actions.append(idx)
         
         return np.array(legal_actions, dtype=np.int64)
