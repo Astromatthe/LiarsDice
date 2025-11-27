@@ -1,7 +1,9 @@
 LiarsDice.code-workspace
 
-# data
+data
 
 src/__pycache__/
 
 __pycache__
+
+figures

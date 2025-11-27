@@ -1,7 +1,5 @@
 # HYPERPARAMETERS
 DICE_PER_PLAYER = 5
-N_PLAYERS = 4
-TOTAL_DICE = DICE_PER_PLAYER * N_PLAYERS
 
 BASE = 10   # for encoding purposes
 FACE_COUNT = 6 # die faces 1-6 (0 is no die)
@@ -10,3 +8,4 @@ BELIEF_Q_MAX = TOTAL_DICE
 BELIEF_Q_CAP = 15
 
 NUM_ACTIONS = TOTAL_DICE * FACE_COUNT + 1
+FACE_COUNT = 6 # die faces 1-6 (0 is no die)

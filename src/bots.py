@@ -2,7 +2,8 @@ import random
 import math
 from src.players import Player
 from src.rules import is_bid_higher
-from typing import List, Tuple
+from typing import List
+import numpy as np
 
 class RandomBot(Player):
     def act(self, game):
@@ -159,7 +160,7 @@ class RiskAverseBot(_StatBot):
             
         prob = self._prob_bid_true(game, bid)
         # risk-averse threshhold: call if less likely
-        if prob < 0.60:
+        if prob < 0.05:
             return ("call", None)
         
         # otherwise, make conservative minimal raise: pick smallest legal bid by (q, face) order
@@ -167,7 +168,66 @@ class RiskAverseBot(_StatBot):
         # prefer bids with reasonable probability
         for candidate in legal_sorted:
             cand_prob = self._prob_bid_true(game, candidate)
-            if cand_prob >= 0.5:
+            if cand_prob >= 0.90:
                 return ("bid", candidate)
         # if none reasonable, pick the minimal increase
         return ("bid", legal_sorted[0])
+    
+class ConservativeBot(_StatBot):
+    """Conservative Bot from WiLDCARD"""
+
+    def act(self, game):
+        legal = self._legal_bids(game)
+        if not legal:
+            return ("call", None)
+        
+        bid = game.current_bid
+        q,f = bid
+        _, _, own_faces = self._own_info(game)
+        counts = {}
+        if own_faces:
+            for d in own_faces:
+                counts[d] = counts.get(d,0) + 1
+            preferred_face = max(counts, key=counts.get) if counts else None
+
+        if q==0: #opening bid
+            if preferred_face is None:
+                preferred_face = random.randint(1,6)
+            q_choice = 1
+
+            if is_bid_higher(bid, [q_choice, preferred_face]):
+                return ("bid", [q_choice, preferred_face])
+            else:
+                bid_choice = random.choice(legal)
+                return ("bid", bid_choice)
+
+        #conservative raise
+        safe_raises = [(n,f) for (n,f) in legal if n <= counts.get(f,0) and is_bid_higher(bid, (n,f))]
+        if safe_raises:
+            safe_raises.sort(key=lambda bf: (bf[0], bf[1]))
+            #print(f"[DEBUG] Bot bidding {safe_raises[0]} with {own_faces}.")
+            return ("bid", safe_raises[0])
+        else:
+            #print(f"[DEBUG] No safe raises of {own_faces} vs {bid}, calling.")
+            return ("call", None) #call if no safe raises exist
+        
+class AggressiveBot(_StatBot):
+    """Aggressive bot from WiLDCARD"""
+
+    def act(self, game):
+        legal = self._legal_bids(game)
+        if not legal:
+            return ("call", None)
+        
+        bid = game.current_bid
+        q, f = bid
+        _, _, own_faces = self._own_info(game)
+
+        rand = np.random.randint(0, 100)
+        if rand < 50 or q == 0:
+            legal_sorted = sorted(legal, key=lambda bf: (bf[0], bf[1]))
+            # print(f"[DEBUG] Making bid {legal_sorted[0]} with {own_faces}")
+            return ("bid", legal_sorted[0])
+        else:
+            # print(f"[DEBUG] Making call of {own_faces} vs {bid}")
+            return("call", None)
