@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from config import NUM_ACTIONS
 import matplotlib.pyplot as plt
+import os
 
 
 class DQN(nn.Module):
@@ -159,6 +160,9 @@ def train_dqn(
     target_update_freq,
     memory_size,
     device="cpu",
+    checkpoint_path: str = None,
+    resume: bool = False,
+    save_every: int = 100,
 ):
     env = LiarsDiceEnv()
 
@@ -181,9 +185,39 @@ def train_dqn(
 
     win_rate_history = []
 
+    # If requested, try to load checkpoint
+    start_episode = 0
+    if resume and checkpoint_path is not None and os.path.exists(checkpoint_path):
+        print(f"Loading checkpoint from {checkpoint_path}")
+        ckpt = torch.load(checkpoint_path, map_location=device)
+        try:
+            policy_net.load_state_dict(ckpt["policy_state"])
+            target_state = ckpt.get("target_state", None)
+            if target_state is not None:
+                target_net.load_state_dict(target_state)
+            else:
+                target_net.load_state_dict(ckpt["policy_state"])
+
+            optimizer.load_state_dict(ckpt.get("optimizer_state", optimizer.state_dict()))
+
+            start_episode = ckpt.get("episode", 0) + 1
+            epsilon = ckpt.get("epsilon", epsilon_start)
+            step_count = ckpt.get("step_count", 0)
+            wins = ckpt.get("wins", 0)
+            win_rate_history = ckpt.get("win_rate_history", [])
+
+            # If memory was saved, reload it (saved as list)
+            saved_mem = ckpt.get("memory", None)
+            if saved_mem is not None:
+                memory = deque(saved_mem, maxlen=memory_size)
+
+            print(f"Resuming from episode {start_episode}; epsilon={epsilon:.4f}")
+        except Exception as e:
+            print(f"Failed to load checkpoint: {e}\nStarting from scratch.")
+
     ### Main Training Loop ###
 
-    for episode in range(episodes):
+    for episode in range(start_episode, episodes):
         print(f"\rCurrent episode: {episode+1}", end="", flush=True)
         state = env.reset()
         done = False
@@ -222,6 +256,44 @@ def train_dqn(
         win_rate = wins / (episode + 1)
         win_rate_history.append(win_rate)
 
+        # Periodically save checkpoint
+        if checkpoint_path is not None and (episode + 1) % save_every == 0:
+            ckpt = {
+                "policy_state": policy_net.state_dict(),
+                "target_state": target_net.state_dict(),
+                "optimizer_state": optimizer.state_dict(),
+                "episode": episode,
+                "epsilon": epsilon,
+                "step_count": step_count,
+                "wins": wins,
+                "win_rate_history": win_rate_history,
+                "memory": list(memory),
+            }
+            try:
+                torch.save(ckpt, checkpoint_path)
+                print(f"\nSaved checkpoint to {checkpoint_path} at episode {episode+1}")
+            except Exception as e:
+                print(f"Failed to save checkpoint: {e}")
+
+
+    # Save final checkpoint
+    if checkpoint_path is not None:
+        ckpt = {
+            "policy_state": policy_net.state_dict(),
+            "target_state": target_net.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "episode": episodes - 1,
+            "epsilon": epsilon,
+            "step_count": step_count,
+            "wins": wins,
+            "win_rate_history": win_rate_history,
+            "memory": list(memory),
+        }
+        try:
+            torch.save(ckpt, checkpoint_path)
+            print(f"Saved final checkpoint to {checkpoint_path}")
+        except Exception as e:
+            print(f"Failed to save final checkpoint: {e}")
 
     print()
 
@@ -229,7 +301,8 @@ def train_dqn(
     plt.xlabel("Episode")
     plt.ylabel("Cumulative Win Rate")
     plt.title("DQN RL-Bot Win Rate vs Training Episodes")
-    plt.show()
+    plt.savefig("win_rate.png")
+    plt.close()
 
     return policy_net, target_net
 

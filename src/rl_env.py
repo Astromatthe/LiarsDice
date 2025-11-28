@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from config import N_PLAYERS, DICE_PER_PLAYER, TOTAL_DICE
+from config import N_PLAYERS, DICE_PER_PLAYER, TOTAL_DICE, FACE_COUNT
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskAverseBot, RiskyBot
 from src.beliefs import OpponentBelief
@@ -7,7 +7,7 @@ from src.encode import encode_rl_state, decode_rl_action, encode_rl_action
 from src.rules import is_bid_higher
 import random
 import numpy as np
-from config import FACE_COUNT
+
 
 
 class LiarsDiceEnv:

@@ -11,7 +11,8 @@ class RandomBot(Player):
         # choose either to call or to make a legal higher bid
         choices = ["call"]
         legal_bids = [] 
-        for q in range(1, game.total_dice + 1):
+        current_total = sum(game.dice_counts)
+        for q in range(1, current_total + 1):
             for f in range(1, 7):
                 if is_bid_higher(game.current_bid, [q, f]):
                     legal_bids.append([q, f])   # all legal higher bids
