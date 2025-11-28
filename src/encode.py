@@ -1,4 +1,4 @@
-from config import FACE_COUNT
+from config import FACE_COUNT, TOTAL_DICE
 from typing import List
 
 

@@ -107,6 +107,9 @@ if __name__ == "__main__":
     parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--batch", type=int, default=64)
     parser.add_argument("--buffer", type=int, default=10000)
+    parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--save_every", type=int, default=100)
 
     args = parser.parse_args()
 
@@ -122,7 +125,11 @@ if __name__ == "__main__":
             epsilon_min=0.01,
             epsilon_decay=0.995,
             target_update_freq=1000,
-            memory_size=args.buffer
+            memory_size=args.buffer,
+            device="cpu",
+            checkpoint_path=args.checkpoint,
+            resume=args.resume,
+            save_every=args.save_every,
         )
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time

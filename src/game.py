@@ -263,7 +263,8 @@ class LiarsDiceGame:
     def get_legal_bids(self):
         """Return list of legal bids [q,f] given current bid and current total dice."""
         legal = []
-        for q in range(1, self.total_dice + 1):
+        current_total = sum(self.dice_counts)
+        for q in range(1, current_total + 1):
             for f in range(1, FACE_COUNT + 1):
                 if is_bid_higher(self.current_bid, [q, f]):
                     legal.append([q, f])
