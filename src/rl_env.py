@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from config import N_PLAYERS, DICE_PER_PLAYER, TOTAL_DICE, FACE_COUNT
+from config import N_PLAYERS, FACE_COUNT, MAX_STATE_DIM
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskAverseBot, RiskyBot
 from src.beliefs import OpponentBelief
@@ -49,6 +49,12 @@ class LiarsDiceEnv:
 
         if done: 
             return self._observe()
+        
+        state = self._observe()
+
+        assert len(state) == MAX_STATE_DIM, (
+            f"State dimension mismatch during reset: got {len(state)} expected {MAX_STATE_DIM}"
+        )
 
         return self._observe()
 
@@ -68,7 +74,7 @@ class LiarsDiceEnv:
 
         terminal_flag = int(self.game.is_game_over()) # TODO
 
-        return encode_rl_state(
+        state =  encode_rl_state(
             total_dice=total_dice,
             agent_dice_count=agent_dice_count,
             agent_dice_vector=agent_dice_vec,
@@ -76,6 +82,13 @@ class LiarsDiceEnv:
             opponent_beliefs=opponent_beliefs_vecs,
             terminal_flag=terminal_flag
         )
+
+        assert len(state) == MAX_STATE_DIM, (
+            f"State dimension mismatch: got {len(state)}, expected {MAX_STATE_DIM}. "
+            f"Check padding, encoding, or N_PLAYERS settings."
+        )
+
+        return state
     
     def step(self, action_index: int):
         """

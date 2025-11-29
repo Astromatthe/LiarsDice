@@ -6,7 +6,7 @@ from src.rl_env import LiarsDiceEnv, get_legal_action_indices
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from config import NUM_ACTIONS
+from config import NUM_ACTIONS, MAX_STATE_DIM
 import matplotlib.pyplot as plt
 import os
 
@@ -169,8 +169,8 @@ def train_dqn(
     init_state = env.reset()
     state_dim = len(init_state)
 
-    policy_net = DQN(state_dim, NUM_ACTIONS).to(device)
-    target_net = DQN(state_dim, NUM_ACTIONS).to(device)
+    policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    target_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     optimizer = optim.Adam(policy_net.parameters(), lr = learning_rate)
