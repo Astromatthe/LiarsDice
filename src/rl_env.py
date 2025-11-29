@@ -380,7 +380,7 @@ def get_legal_action_indices(state_vec):
         legal_actions = []
 
         # no legal actions from terminal state
-        if terminal_flag == 1 or total_dice <= 1:
+        if terminal_flag == 1:
             return np.array([], dtype = np.int64)
         
         # call is legal if someone has bid

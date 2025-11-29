@@ -230,6 +230,8 @@ def train_dqn(
             action_index = select_action(policy_net, state, epsilon)
 
             if action_index is None:
+                assert env.game.is_game_over(), "No legal actions but game is not over!"
+                done = True
                 break
 
             next_state, reward, done, _ = env.step(action_index)
@@ -253,6 +255,11 @@ def train_dqn(
             
         epsilon = max(epsilon_min, epsilon * epsilon_decay)
         winner = env.game.get_winner()
+
+        if not env.game.is_game_over():
+            
+            print(f"[Warning] Episode {episode+1} ended but game.is_game_over() is False")
+
 
         if winner is not None and winner == env.rl_id:
             wins += 1

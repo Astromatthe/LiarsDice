@@ -1,4 +1,3 @@
 {
-  "DQNBot": {"count": 1, "model":"check_1.pt"},
-  "RandomBot": 1
+  "RandomBot": 2
 }
