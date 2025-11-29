@@ -10,8 +10,6 @@ from src.beliefs import OpponentBelief
 from config import FACE_COUNT
 
 
-from config import FACE_COUNT
-
 
 class RandomBot(Player):
     def act(self, game):
