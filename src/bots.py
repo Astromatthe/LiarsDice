@@ -4,6 +4,12 @@ from src.players import Player
 from src.rules import is_bid_higher
 from typing import List
 import numpy as np
+import torch
+from src.encode import decode_rl_action, encode_rl_state, encode_rl_action
+from src.beliefs import OpponentBelief
+from config import FACE_COUNT
+
+
 
 class RandomBot(Player):
     def act(self, game):
@@ -232,3 +238,90 @@ class AggressiveBot(_StatBot):
         else:
             # print(f"[DEBUG] Making call of {own_faces} vs {bid}")
             return("call", None)
+        
+
+class DQNBot:
+    def __init__(self, pid, policy_net, total_players, device = 'cpu', epsilon=0.0):
+
+        """
+        pid           : this bot's player id in the game
+        policy_net    : trained DQN model (already constructed)
+        total_players : total number of players in the game
+        device        : 'cpu' or 'cuda'
+        epsilon       : usually 0.0 for evaluation/self-play
+        """
+
+        self.pid = pid
+        self.policy_net = policy_net.to(device)
+        self.policy_net.eval()
+        self.device = device
+        self.epsilon = epsilon
+
+        self.opponent_beliefs = {
+            p: OpponentBelief()
+            for p in range(total_players)
+            if p != self.pid
+        }
+
+        assert self.pid not in self.opponent_beliefs
+    
+    def act(self, game):
+        state_vec = self._build_state(game)
+
+        # Build legal action indices from the game object (avoid importing rl_env to prevent circular imports)
+        legal_bids = game.get_legal_bids()
+        legal_actions = ["call"] + legal_bids if legal_bids else ["call"]
+        legal_indices = [encode_rl_action(a) for a in legal_actions]
+
+        if len(legal_indices) == 0:
+            return ("call", None)
+
+        # Exploration
+        if random.random() < self.epsilon:
+            idx = int(random.choice(legal_indices))
+            act = decode_rl_action(idx)
+            return ("call", None) if act == "call" else ("bid", act)
+
+        # Exploitation: evaluate Q-values and mask illegal actions
+        state_t = torch.tensor(state_vec, dtype=torch.float32).unsqueeze(0)
+        with torch.no_grad():
+            qvals = self.policy_net(state_t).squeeze(0)
+
+        masked_q = torch.full_like(qvals, float("-inf"))
+        legal_t = torch.tensor(legal_indices, dtype=torch.long)
+        masked_q[legal_t] = qvals[legal_t]
+
+        best = int(torch.argmax(masked_q).item())
+        action = decode_rl_action(best)
+        return ("call", None) if action == "call" else ("bid", action)
+        
+    def _build_state(self, game):
+
+        total_dice = sum(game.dice_counts)
+
+        faces = game.dice[self.pid]
+        agent_dice_vec = [faces.count(f) for f in range(1, FACE_COUNT + 1)]
+        agent_dice_count = game.dice_counts[self.pid]
+
+        current_bid = game.current_bid
+
+        opponent_beliefs = []
+        for p in self.opponent_beliefs.keys():
+            if p == self.pid:
+                continue
+            belief = self.opponent_beliefs[p]
+            opponent_beliefs.append(belief.sample_belief().tolist())
+
+        terminal_flag = int(game.is_game_over())
+
+        return encode_rl_state(
+            total_dice=total_dice,
+            agent_dice_count=agent_dice_count,
+            agent_dice_vector=agent_dice_vec,
+            current_bid=current_bid,
+            opponent_beliefs=opponent_beliefs,
+            terminal_flag=terminal_flag
+        )
+        
+
+

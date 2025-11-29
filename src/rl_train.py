@@ -6,56 +6,12 @@ from src.rl_env import LiarsDiceEnv, get_legal_action_indices
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from config import NUM_ACTIONS
+from config import NUM_ACTIONS, MAX_STATE_DIM
 import matplotlib.pyplot as plt
 import os
-
-
-class DQN(nn.Module):
-    """
-    Simple feedforward network for approximating Q(s,a).
-    
-    Inputs:
-        state_dim  : length of encoded state vector
-        action_dim : number of discrete actions (NUM_ACTIONS)
-    """
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 128):
-        super(DQN, self).__init__()
-
-        # First fully-connected layer: from state_dim -> hidden_dim
-        self.fc1 = nn.Linear(state_dim, hidden_dim)
-
-        # Second fully-connected layer: hidden_dim -> hidden_dim
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-
-        # Output layer: hidden_dim -> action_dim (one Q-value per action)
-        self.out = nn.Linear(hidden_dim, action_dim)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass.
-        
-        x: Tensor of shape [batch_size, state_dim]
-           (or [state_dim], which we’ll handle)
-        Returns:
-           Tensor of shape [batch_size, action_dim]
-           containing Q-values for each action.
-        """
-
-        # If a single state comes in as [state_dim], add batch dim -> [1, state_dim]
-        if x.dim() == 1:
-            x = x.unsqueeze(0)
-
-        # Layer 1 + ReLU
-        x = F.relu(self.fc1(x))
-
-        # Layer 2 + ReLU
-        x = F.relu(self.fc2(x))
-
-        # Output layer (no activation: raw Q-values)
-        q_values = self.out(x)
-
-        return q_values
+from typing import Dict, Any
+import importlib
+from src.dqn_model import DQN
 
 
 
@@ -64,7 +20,6 @@ def select_action(policy_net, state_vec, epsilon):
     Epsilon-greedy action selection with illegal action masking.
     
     Arguments:
-        env         : LiarsDiceEnv instance (must have get_legal_action_indices())
         policy_net  : DQN model mapping state → Q-values (one per action index)
         state       : encoded RL state (numpy array or list)
         epsilon     : float in [0,1]
@@ -163,14 +118,14 @@ def train_dqn(
     checkpoint_path: str = None,
     resume: bool = False,
     save_every: int = 100,
+    roster = None
 ):
-    env = LiarsDiceEnv()
+    env = LiarsDiceEnv(roster=roster)
 
-    init_state = env.reset()
-    state_dim = len(init_state)
+    
 
-    policy_net = DQN(state_dim, NUM_ACTIONS).to(device)
-    target_net = DQN(state_dim, NUM_ACTIONS).to(device)
+    policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    target_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     optimizer = optim.Adam(policy_net.parameters(), lr = learning_rate)
@@ -210,6 +165,54 @@ def train_dqn(
             saved_mem = ckpt.get("memory", None)
             if saved_mem is not None:
                 memory = deque(saved_mem, maxlen=memory_size)
+
+            # Restore roster from checkpoint if not provided or different
+            ckpt_roster = ckpt.get("roster", None)
+            if ckpt_roster is not None:
+                # ckpt_roster should be a mapping of bot-class-name -> count (strings)
+                # Convert names to actual classes from `src.bots` if necessary
+                bots_mod = importlib.import_module("src.bots")
+
+                def deserialize_roster(r: Dict[Any, int]):
+                    out = {}
+                    # if keys appear to already be types, return as-is
+                    any_key = next(iter(r.keys())) if len(r) > 0 else None
+                    if isinstance(any_key, type):
+                        return r
+                    for name, cnt in r.items():
+                        cls = getattr(bots_mod, name, None)
+                        if cls is None:
+                            print(f"Warning: unknown bot class name '{name}' in checkpoint roster; skipping")
+                            continue
+                        out[cls] = cnt
+                    return out
+
+                try:
+                    deserialized = deserialize_roster(ckpt_roster)
+                except Exception:
+                    deserialized = ckpt_roster
+
+                if roster is None:
+                    roster = deserialized
+                    env = LiarsDiceEnv(roster=roster)
+                    print("Restored roster from checkpoint and reinitialized environment.")
+                else:
+                    # compare by class-name mapping for safety
+                    def to_name_map(r):
+                        nm = {}
+                        if r is None:
+                            return nm
+                        for k, v in r.items():
+                            if isinstance(k, type):
+                                nm[k.__name__] = v
+                            else:
+                                nm[str(k)] = v
+                        return nm
+
+                    if to_name_map(roster) != to_name_map(deserialized):
+                        print("Warning: provided roster differs from checkpoint roster. Using checkpoint roster and reinitializing environment.")
+                        roster = deserialized
+                        env = LiarsDiceEnv(roster=roster)
 
             print(f"Resuming from episode {start_episode}; epsilon={epsilon:.4f}")
         except Exception as e:
@@ -258,6 +261,15 @@ def train_dqn(
 
         # Periodically save checkpoint
         if checkpoint_path is not None and (episode + 1) % save_every == 0:
+            roster_serial = {}
+            if roster is not None:
+                for k, v in roster.items():
+                    name = k.__name__ if isinstance(k, type) else str(k)
+                    if isinstance(v, dict):
+                        roster_serial[name] = {"count": int(v.get("count", 0)), "model": v.get("model")}
+                    else:
+                        roster_serial[name] = int(v)
+
             ckpt = {
                 "policy_state": policy_net.state_dict(),
                 "target_state": target_net.state_dict(),
@@ -268,6 +280,7 @@ def train_dqn(
                 "wins": wins,
                 "win_rate_history": win_rate_history,
                 "memory": list(memory),
+                "roster": roster_serial,
             }
             try:
                 torch.save(ckpt, checkpoint_path)
@@ -278,6 +291,15 @@ def train_dqn(
 
     # Save final checkpoint
     if checkpoint_path is not None:
+        roster_serial = {}
+        if roster is not None:
+            for k, v in roster.items():
+                name = k.__name__ if isinstance(k, type) else str(k)
+                if isinstance(v, dict):
+                    roster_serial[name] = {"count": int(v.get("count", 0)), "model": v.get("model")}
+                else:
+                    roster_serial[name] = int(v)
+
         ckpt = {
             "policy_state": policy_net.state_dict(),
             "target_state": target_net.state_dict(),
@@ -288,6 +310,7 @@ def train_dqn(
             "wins": wins,
             "win_rate_history": win_rate_history,
             "memory": list(memory),
+            "roster": roster_serial,
         }
         try:
             torch.save(ckpt, checkpoint_path)

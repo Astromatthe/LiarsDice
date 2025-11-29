@@ -10,18 +10,5 @@ class OpponentBelief:
         self.alpha[face - 1] += 1
     
     def sample_belief(self):
-        
-        return np.random.dirichlet(self.alpha)
-    
-    
-    
-    ###### TODO #######
-
-    """
-    When opponents turn
-
-    opponent_beliefs = [
-    opponent_belief[i].sample_belief()
-    for each opponent i
-]
-    """
+        alpha = np.array(self.alpha)
+        return alpha / np.sum(alpha)

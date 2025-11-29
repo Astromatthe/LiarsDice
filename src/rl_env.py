@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from config import N_PLAYERS, DICE_PER_PLAYER, TOTAL_DICE, FACE_COUNT
+from config import FACE_COUNT, MAX_STATE_DIM, MAX_PLAYERS, NUM_ACTIONS
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskAverseBot, RiskyBot
 from src.beliefs import OpponentBelief
@@ -7,28 +7,87 @@ from src.encode import encode_rl_state, decode_rl_action, encode_rl_action
 from src.rules import is_bid_higher
 import random
 import numpy as np
+import torch
+from src.dqn_model import DQN
+import os
 
 
 
 class LiarsDiceEnv:
-    def __init__(self, rl_id:int = 0):
-        self.rl_id = rl_id
-        self.players = [None]*N_PLAYERS
+    def __init__(self, rl_id: int = 0, roster=None):
+        """
+        roster: dict mapping BotClass → count
+            Example: {RandomBot: 1, RiskyBot: 1}
+            total_players = 1 (RL agent) + sum(counts)
+        """
 
-        # Right now all other players are random bots. 
-        # Change later to allow different learning modes.
-        for pid in range(N_PLAYERS):
-            if pid==rl_id:
-                self.players[pid] = None
-            else:
-                self.players[pid] = RandomBot(pid)
+        if roster is None:
+            roster = {RandomBot: 1}
+
+        self.roster = roster
+        self.rl_id = rl_id
+
+        # roster values may be ints or dicts {"count": n, "model": ...}
+        def _count_val(v):
+            return int(v) if not isinstance(v, dict) else int(v.get("count", 0))
+
+        self.total_players = 1 + sum(_count_val(v) for v in roster.values())
+
+        assert self.total_players <= MAX_PLAYERS, \
+            f"Roster creates {self.total_players} players, but MAX_PLAYERS={MAX_PLAYERS}"
         
+        self.players = [None]
+
+        for BotClass, raw_count in roster.items():
+            # raw_count may be an int or a dict like {"count": n, "model": "file.pt"}
+            if isinstance(raw_count, dict):
+                count = int(raw_count.get("count", 0))
+                model_path = raw_count.get("model", None)
+            else:
+                count = int(raw_count)
+                model_path = None
+
+            for _ in range(count):
+                pid = len(self.players)
+                # If this is a DQNBot-like class and a model path is provided, load model
+                try:
+                    name = BotClass.__name__
+                except Exception:
+                    name = str(BotClass)
+
+                if name == "DQNBot" and model_path is not None and os.path.exists(model_path):
+                    # build model with correct dimensions and load weights
+                    model = DQN(MAX_STATE_DIM, NUM_ACTIONS)
+                    try:
+                        ckpt = torch.load(model_path, map_location="cpu")
+                        # If checkpoint contains policy_state dict, use it
+                        if isinstance(ckpt, dict) and "policy_state" in ckpt:
+                            model.load_state_dict(ckpt["policy_state"])
+                        else:
+                            # assume file is raw state_dict
+                            model.load_state_dict(ckpt)
+                        print(f"Loaded DQN model for opponent from {model_path}")
+                    except Exception as e:
+                        print(f"Failed to load DQN model from {model_path}: {e}\nUsing uninitialized model.")
+                    # instantiate bot with model and n_players placeholder; DQNBot expects (pid, model, n_players)
+                    try:
+                        from src.bots import DQNBot
+                        # bots.DQNBot signature: (pid, policy_net, total_players, device='cpu', epsilon=0.0)
+                        self.players.append(DQNBot(pid, policy_net=model, total_players=self.total_players, device='cpu', epsilon=0.0))
+                        continue
+                    except Exception:
+                        # fallback to plain BotClass(pid)
+                        pass
+
+                # default instantiation
+                self.players.append(BotClass(pid))
+
         self.game = LiarsDiceGame(self.players, save_history=False)
 
-        # Each non-rlbot player gets uniform dirichlet prior
         self.opponent_beliefs = {
-            pid: OpponentBelief()
-            for pid in range(N_PLAYERS) if pid != self.rl_id
+            pid: OpponentBelief() 
+            for pid in range(self.total_players) 
+            if pid != self.rl_id
         }
 
     def reset(self, starting_player: int = None):
@@ -37,7 +96,7 @@ class LiarsDiceEnv:
         self.game = LiarsDiceGame(self.players, save_history = False)
 
         if starting_player is None:
-            starting_player = random.randrange(N_PLAYERS)
+            starting_player = random.randrange(self.total_players)
 
         self.game.deal(starting_player=starting_player)
 
@@ -49,18 +108,26 @@ class LiarsDiceEnv:
 
         if done: 
             return self._observe()
+        
+        state = self._observe()
 
-        return self._observe()
+        assert len(state) == MAX_STATE_DIM, (
+            f"State dimension mismatch during reset: got {len(state)} expected {MAX_STATE_DIM}"
+        )
+
+        return state
 
     
     def _observe(self):
         total_dice = sum(self.game.dice_counts)
-        agent_dice_vec = self.game.dice[self.rl_id]
+        faces = self.game.dice[self.rl_id]
+        agent_dice_vec = [faces.count(f) for f in range(1, FACE_COUNT+1)]
         agent_dice_count = self.game.dice_counts[self.rl_id]
         current_bid = self.game.current_bid
 
+
         opponent_beliefs_vecs = []
-        for pid in range(N_PLAYERS):
+        for pid in range(self.total_players):
             if pid == self.rl_id:
                 continue
             belief = self.opponent_beliefs[pid]
@@ -68,7 +135,7 @@ class LiarsDiceEnv:
 
         terminal_flag = int(self.game.is_game_over()) # TODO
 
-        return encode_rl_state(
+        state =  encode_rl_state(
             total_dice=total_dice,
             agent_dice_count=agent_dice_count,
             agent_dice_vector=agent_dice_vec,
@@ -76,6 +143,14 @@ class LiarsDiceEnv:
             opponent_beliefs=opponent_beliefs_vecs,
             terminal_flag=terminal_flag
         )
+
+        assert len(state) == MAX_STATE_DIM, (
+            f"State dimension mismatch: got {len(state)}, expected {MAX_STATE_DIM}. "
+            f"Check padding, encoding, or MAX_PLAYERS settings."
+        )
+
+
+        return state
     
     def step(self, action_index: int):
         """
@@ -98,6 +173,9 @@ class LiarsDiceEnv:
 
         # RL action
         rl_res = self.game.step(self.rl_id, ("call", None) if action == "call" else ("bid", action))
+
+        if action != 'call':
+            self._update_all_beliefs_from_bid(self.rl_id, action)
 
         # === CASE 1: RL called bluff ===
         if action == "call":
@@ -136,7 +214,8 @@ class LiarsDiceEnv:
         opp_act = opp_bot.act(self.game)
 
         if opp_act[0] == "bid":
-            self.opponent_beliefs[opp_id].update_from_bid(opp_act[1])
+            #self.opponent_beliefs[opp_id].update_from_bid(opp_act[1])
+            self._update_all_beliefs_from_bid(opp_id, opp_act[1])
 
         opp_res = self.game.step(opp_id, opp_act)
 
@@ -163,6 +242,26 @@ class LiarsDiceEnv:
         # Otherwise: opponent bid → RL got +100 → now simulate full game until RL turn
         r2, d2 = self._advance_to_rl_turn()
         return self._observe(), reward + r2, d2, info
+    
+    def _update_all_beliefs_from_bid(self, bidder_pid: int, bid):
+        """
+        Update opponent-belief objects for:
+          - the RL agent (self.opponent_beliefs)
+          - any bots that expose .opponent_beliefs (e.g., DQNBot)
+        """
+
+        # Update RL agent's belief
+        if bidder_pid in self.opponent_beliefs:
+            self.opponent_beliefs[bidder_pid].update_from_bid(bid)
+
+        # Update any DQNBots that track opponent beliefs
+        for bot in self.players:
+            if bot is None:
+                continue
+            if hasattr(bot, "opponent_beliefs") and bidder_pid in bot.opponent_beliefs:
+                bot.opponent_beliefs[bidder_pid].update_from_bid(bid)
+
+        
 
         
     def _terminal_reward(self) -> float:
@@ -240,19 +339,26 @@ class LiarsDiceEnv:
                 done = True
                 break
 
-            if self.game.current_player == self.rl_id:
-                break
-
             pid = self.game.current_player
+
+            if pid == self.rl_id:
+                break
+            
+            # Skiping eliminated players
+            if self.game.dice_counts[pid] == 0:
+                self.game.current_player = (pid + 1) % self.total_players
+                continue
+            
             bot = self.players[pid]
             act = bot.act(self.game)
 
             if act[0] == "bid":
-                self.opponent_beliefs[pid].update_from_bid(act[1])
+                #assert pid in self.opponent_beliefs, f"Missing belief for pid={pid}"
+                #self.opponent_beliefs[pid].update_from_bid(act[1])
+                self._update_all_beliefs_from_bid(pid, act[1])
 
-            res = self.game.step(pid, act)
 
-            continue
+            self.game.step(pid, act)
 
         return reward, done
     
