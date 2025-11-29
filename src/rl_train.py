@@ -11,53 +11,7 @@ import matplotlib.pyplot as plt
 import os
 from typing import Dict, Any
 import importlib
-
-
-class DQN(nn.Module):
-    """
-    Simple feedforward network for approximating Q(s,a).
-    
-    Inputs:
-        state_dim  : length of encoded state vector
-        action_dim : number of discrete actions (NUM_ACTIONS)
-    """
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 128):
-        super(DQN, self).__init__()
-
-        # First fully-connected layer: from state_dim -> hidden_dim
-        self.fc1 = nn.Linear(state_dim, hidden_dim)
-
-        # Second fully-connected layer: hidden_dim -> hidden_dim
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-
-        # Output layer: hidden_dim -> action_dim (one Q-value per action)
-        self.out = nn.Linear(hidden_dim, action_dim)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass.
-        
-        x: Tensor of shape [batch_size, state_dim]
-           (or [state_dim], which we’ll handle)
-        Returns:
-           Tensor of shape [batch_size, action_dim]
-           containing Q-values for each action.
-        """
-
-        # If a single state comes in as [state_dim], add batch dim -> [1, state_dim]
-        if x.dim() == 1:
-            x = x.unsqueeze(0)
-
-        # Layer 1 + ReLU
-        x = F.relu(self.fc1(x))
-
-        # Layer 2 + ReLU
-        x = F.relu(self.fc2(x))
-
-        # Output layer (no activation: raw Q-values)
-        q_values = self.out(x)
-
-        return q_values
+from src.dqn_model import DQN
 
 
 
@@ -66,7 +20,6 @@ def select_action(policy_net, state_vec, epsilon):
     Epsilon-greedy action selection with illegal action masking.
     
     Arguments:
-        env         : LiarsDiceEnv instance (must have get_legal_action_indices())
         policy_net  : DQN model mapping state → Q-values (one per action index)
         state       : encoded RL state (numpy array or list)
         epsilon     : float in [0,1]
@@ -169,8 +122,7 @@ def train_dqn(
 ):
     env = LiarsDiceEnv(roster=roster)
 
-    init_state = env.reset()
-    #state_dim = len(init_state)
+    
 
     policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
     target_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
@@ -309,6 +261,15 @@ def train_dqn(
 
         # Periodically save checkpoint
         if checkpoint_path is not None and (episode + 1) % save_every == 0:
+            roster_serial = {}
+            if roster is not None:
+                for k, v in roster.items():
+                    name = k.__name__ if isinstance(k, type) else str(k)
+                    if isinstance(v, dict):
+                        roster_serial[name] = {"count": int(v.get("count", 0)), "model": v.get("model")}
+                    else:
+                        roster_serial[name] = int(v)
+
             ckpt = {
                 "policy_state": policy_net.state_dict(),
                 "target_state": target_net.state_dict(),
@@ -319,7 +280,7 @@ def train_dqn(
                 "wins": wins,
                 "win_rate_history": win_rate_history,
                 "memory": list(memory),
-                "roster": { (k.__name__ if isinstance(k, type) else str(k)): v for k, v in (roster.items() if roster is not None else []) },
+                "roster": roster_serial,
             }
             try:
                 torch.save(ckpt, checkpoint_path)
@@ -330,6 +291,15 @@ def train_dqn(
 
     # Save final checkpoint
     if checkpoint_path is not None:
+        roster_serial = {}
+        if roster is not None:
+            for k, v in roster.items():
+                name = k.__name__ if isinstance(k, type) else str(k)
+                if isinstance(v, dict):
+                    roster_serial[name] = {"count": int(v.get("count", 0)), "model": v.get("model")}
+                else:
+                    roster_serial[name] = int(v)
+
         ckpt = {
             "policy_state": policy_net.state_dict(),
             "target_state": target_net.state_dict(),
@@ -340,7 +310,7 @@ def train_dqn(
             "wins": wins,
             "win_rate_history": win_rate_history,
             "memory": list(memory),
-            "roster": { (k.__name__ if isinstance(k, type) else str(k)): v for k, v in (roster.items() if roster is not None else []) },
+            "roster": roster_serial,
         }
         try:
             torch.save(ckpt, checkpoint_path)

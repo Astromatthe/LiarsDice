@@ -1,4 +1,4 @@
 {
-  "RiskyBot": 1,
-  "RiskAverseBot": 1
+  "DQNBot": {"count": 1, "model": "opp_test.pt"},
+  "RandomBot": 1
 }

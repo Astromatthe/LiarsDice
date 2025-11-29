@@ -136,7 +136,13 @@ if __name__ == "__main__":
                     if cls is None:
                         print(f"Warning: unknown bot name '{name}' in {roster_file}; skipping")
                         continue
-                    roster[cls] = int(cnt)
+                    # allow either int (count) or dict {"count": n, "model": "path.pt"}
+                    if isinstance(cnt, dict):
+                        c = int(cnt.get("count", 0))
+                        model = cnt.get("model", None)
+                        roster[cls] = {"count": c, "model": model}
+                    else:
+                        roster[cls] = int(cnt)
                 print(f"Loaded roster from {roster_file}: {raw}")
             except Exception as e:
                 print(f"Failed to load roster file {roster_file}: {e}")
