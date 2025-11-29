@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from config import N_PLAYERS, FACE_COUNT, MAX_STATE_DIM
+from config import FACE_COUNT, MAX_STATE_DIM, MAX_PLAYERS
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskAverseBot, RiskyBot
 from src.beliefs import OpponentBelief
@@ -11,24 +11,37 @@ import numpy as np
 
 
 class LiarsDiceEnv:
-    def __init__(self, rl_id:int = 0):
-        self.rl_id = rl_id
-        self.players = [None]*N_PLAYERS
+    def __init__(self, rl_id: int = 0, roster=None):
+        """
+        roster: dict mapping BotClass → count
+            Example: {RandomBot: 1, RiskyBot: 1}
+            total_players = 1 (RL agent) + sum(counts)
+        """
 
-        # Right now all other players are random bots. 
-        # Change later to allow different learning modes.
-        for pid in range(N_PLAYERS):
-            if pid==rl_id:
-                self.players[pid] = None
-            else:
-                self.players[pid] = RandomBot(pid)
+        if roster is None:
+            roster = {RandomBot: 1}
+
+        self.roster = roster
+        self.rl_id = rl_id
+
+        self.total_players = 1 + sum(roster.values())
+
+        assert self.total_players <= MAX_PLAYERS, \
+            f"Roster creates {self.total_players} players, but MAX_PLAYERS={MAX_PLAYERS}"
         
+        self.players = [None]
+
+        for BotClass, count in roster.items():
+            for _ in range(count):
+                pid = len(self.players)
+                self.players.append(BotClass(pid))
+
         self.game = LiarsDiceGame(self.players, save_history=False)
 
-        # Each non-rlbot player gets uniform dirichlet prior
         self.opponent_beliefs = {
-            pid: OpponentBelief()
-            for pid in range(N_PLAYERS) if pid != self.rl_id
+            pid: OpponentBelief() 
+            for pid in range(self.total_players) 
+            if pid != self.rl_id
         }
 
     def reset(self, starting_player: int = None):
@@ -37,7 +50,7 @@ class LiarsDiceEnv:
         self.game = LiarsDiceGame(self.players, save_history = False)
 
         if starting_player is None:
-            starting_player = random.randrange(N_PLAYERS)
+            starting_player = random.randrange(self.total_players)
 
         self.game.deal(starting_player=starting_player)
 
@@ -56,17 +69,19 @@ class LiarsDiceEnv:
             f"State dimension mismatch during reset: got {len(state)} expected {MAX_STATE_DIM}"
         )
 
-        return self._observe()
+        return state
 
     
     def _observe(self):
         total_dice = sum(self.game.dice_counts)
-        agent_dice_vec = self.game.dice[self.rl_id]
+        faces = self.game.dice[self.rl_id]
+        agent_dice_vec = [faces.count(f) for f in range(1, FACE_COUNT+1)]
         agent_dice_count = self.game.dice_counts[self.rl_id]
         current_bid = self.game.current_bid
 
+
         opponent_beliefs_vecs = []
-        for pid in range(N_PLAYERS):
+        for pid in range(self.total_players):
             if pid == self.rl_id:
                 continue
             belief = self.opponent_beliefs[pid]
@@ -85,8 +100,9 @@ class LiarsDiceEnv:
 
         assert len(state) == MAX_STATE_DIM, (
             f"State dimension mismatch: got {len(state)}, expected {MAX_STATE_DIM}. "
-            f"Check padding, encoding, or N_PLAYERS settings."
+            f"Check padding, encoding, or MAX_PLAYERS settings."
         )
+
 
         return state
     
@@ -253,17 +269,29 @@ class LiarsDiceEnv:
                 done = True
                 break
 
-            if self.game.current_player == self.rl_id:
+            pid = self.game.current_player
+
+            if pid == self.rl_id:
                 break
 
-            pid = self.game.current_player
+            if self.game.dice_counts[pid] == 0:
+                self.game.current_player = (pid + 1) % self.total_players
+                continue
+            
             bot = self.players[pid]
+            act = bot.act(self.game)
+
+            if act[0] == "bid":
+                assert pid in self.opponent_beliefs, f"Missing belief for pid={pid}"
+                self.opponent_beliefs[pid].update_from_bid(act[1])
+
+
             act = bot.act(self.game)
 
             if act[0] == "bid":
                 self.opponent_beliefs[pid].update_from_bid(act[1])
 
-            res = self.game.step(pid, act)
+            self.game.step(pid, act)
 
             continue
 

@@ -9,6 +9,8 @@ import torch.optim as optim
 from config import NUM_ACTIONS, MAX_STATE_DIM
 import matplotlib.pyplot as plt
 import os
+from typing import Dict, Any
+import importlib
 
 
 class DQN(nn.Module):
@@ -163,11 +165,12 @@ def train_dqn(
     checkpoint_path: str = None,
     resume: bool = False,
     save_every: int = 100,
+    roster = None
 ):
-    env = LiarsDiceEnv()
+    env = LiarsDiceEnv(roster=roster)
 
     init_state = env.reset()
-    state_dim = len(init_state)
+    #state_dim = len(init_state)
 
     policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
     target_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
@@ -210,6 +213,54 @@ def train_dqn(
             saved_mem = ckpt.get("memory", None)
             if saved_mem is not None:
                 memory = deque(saved_mem, maxlen=memory_size)
+
+            # Restore roster from checkpoint if not provided or different
+            ckpt_roster = ckpt.get("roster", None)
+            if ckpt_roster is not None:
+                # ckpt_roster should be a mapping of bot-class-name -> count (strings)
+                # Convert names to actual classes from `src.bots` if necessary
+                bots_mod = importlib.import_module("src.bots")
+
+                def deserialize_roster(r: Dict[Any, int]):
+                    out = {}
+                    # if keys appear to already be types, return as-is
+                    any_key = next(iter(r.keys())) if len(r) > 0 else None
+                    if isinstance(any_key, type):
+                        return r
+                    for name, cnt in r.items():
+                        cls = getattr(bots_mod, name, None)
+                        if cls is None:
+                            print(f"Warning: unknown bot class name '{name}' in checkpoint roster; skipping")
+                            continue
+                        out[cls] = cnt
+                    return out
+
+                try:
+                    deserialized = deserialize_roster(ckpt_roster)
+                except Exception:
+                    deserialized = ckpt_roster
+
+                if roster is None:
+                    roster = deserialized
+                    env = LiarsDiceEnv(roster=roster)
+                    print("Restored roster from checkpoint and reinitialized environment.")
+                else:
+                    # compare by class-name mapping for safety
+                    def to_name_map(r):
+                        nm = {}
+                        if r is None:
+                            return nm
+                        for k, v in r.items():
+                            if isinstance(k, type):
+                                nm[k.__name__] = v
+                            else:
+                                nm[str(k)] = v
+                        return nm
+
+                    if to_name_map(roster) != to_name_map(deserialized):
+                        print("Warning: provided roster differs from checkpoint roster. Using checkpoint roster and reinitializing environment.")
+                        roster = deserialized
+                        env = LiarsDiceEnv(roster=roster)
 
             print(f"Resuming from episode {start_episode}; epsilon={epsilon:.4f}")
         except Exception as e:
@@ -268,6 +319,7 @@ def train_dqn(
                 "wins": wins,
                 "win_rate_history": win_rate_history,
                 "memory": list(memory),
+                "roster": { (k.__name__ if isinstance(k, type) else str(k)): v for k, v in (roster.items() if roster is not None else []) },
             }
             try:
                 torch.save(ckpt, checkpoint_path)
@@ -288,6 +340,7 @@ def train_dqn(
             "wins": wins,
             "win_rate_history": win_rate_history,
             "memory": list(memory),
+            "roster": { (k.__name__ if isinstance(k, type) else str(k)): v for k, v in (roster.items() if roster is not None else []) },
         }
         try:
             torch.save(ckpt, checkpoint_path)

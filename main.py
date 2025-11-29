@@ -3,6 +3,9 @@ from src.bots import RandomBot, RiskyBot, RiskAverseBot, ConservativeBot, Aggres
 from src.gui import LiarsDiceGUI
 import tkinter as tk
 import random
+import json
+import os
+import importlib
 
 ## TEST
 def main():
@@ -115,6 +118,28 @@ if __name__ == "__main__":
 
     if args.train:
         from src.rl_train import train_dqn
+        # Load roster from file if present (no CLI flags required)
+        roster = None
+        roster_file = os.environ.get("ROSTER_FILE", "roster.json")
+        if args.checkpoint is None:
+            # if no checkpoint CLI flag provided, still attempt default roster file
+            pass
+        if os.path.exists(roster_file):
+            try:
+                with open(roster_file, "r") as f:
+                    raw = json.load(f)
+                # raw expected format: { "RandomBot": 1, "RiskyBot": 1 }
+                bots_mod = importlib.import_module("src.bots")
+                roster = {}
+                for name, cnt in raw.items():
+                    cls = getattr(bots_mod, name, None)
+                    if cls is None:
+                        print(f"Warning: unknown bot name '{name}' in {roster_file}; skipping")
+                        continue
+                    roster[cls] = int(cnt)
+                print(f"Loaded roster from {roster_file}: {raw}")
+            except Exception as e:
+                print(f"Failed to load roster file {roster_file}: {e}")
         start_time = time.perf_counter()
         policy, target = train_dqn(
             episodes=args.episodes,
@@ -130,6 +155,7 @@ if __name__ == "__main__":
             checkpoint_path=args.checkpoint,
             resume=args.resume,
             save_every=args.save_every,
+            roster=roster,
         )
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
