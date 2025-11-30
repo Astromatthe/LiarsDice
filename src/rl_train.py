@@ -6,7 +6,7 @@ from src.rl_env import LiarsDiceEnv, get_legal_action_indices
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from config import NUM_ACTIONS, MAX_STATE_DIM
+from config import NUM_ACTIONS, MAX_STATE_DIM, MAX_PLAYERS
 import matplotlib.pyplot as plt
 import os
 from typing import Dict, Any
@@ -104,6 +104,42 @@ def optimize_model(memory, batch_size, policy_net, target_net, optimizer, gamma)
     optimizer.step()
 
 
+def deserialize_roster(roster_dict):
+    """
+    Accepts:
+        {"RiskyBot": 1}
+        {"DQNBot": {"count": 1, "model": "x.pt"}}
+        {"RiskyBot": 1, "DQNBot": {"count": 1, "model": "x.pt"}}
+
+    Returns canonical form:
+        {BotClass: {"count": int, "model": Optional[str]}}
+    """
+
+    bots_mod = importlib.import_module("src.bots")
+    out = {}
+
+    for name, val in roster_dict.items():
+        cls = getattr(bots_mod, name, None)
+        if cls is None:
+            raise ValueError(f"Unknown bot class: {name}")
+
+        # Special-case: DQNBot uses {"count": n, "model": file}
+        if name == "DQNBot":
+            if not isinstance(val, dict):
+                raise ValueError("DQNBot roster entry must be dict {count, model}")
+            count = int(val["count"])
+            model = val.get("model")
+            out[cls] = {"count": count, "model": model}
+
+        # All other bots use integer counts
+        else:
+            if not isinstance(val, int):
+                raise ValueError(f"Bot '{name}' expects int count, got {val}")
+            out[cls] = {"count": val, "model": None}
+
+    return out
+
+
 def train_dqn(
     episodes,
     batch_size,
@@ -155,7 +191,14 @@ def train_dqn(
 
             optimizer.load_state_dict(ckpt.get("optimizer_state", optimizer.state_dict()))
 
-            start_episode = ckpt.get("episode", 0) + 1
+            raw_ep = ckpt.get("episode", 0)
+            if isinstance(raw_ep, dict):
+                print(f"[Warning] Checkpoint 'episode' key is a dict. Resetting to episode 0.")
+                start_episode = 0
+            else:
+                start_episode = int(raw_ep) + 1
+
+
             epsilon = ckpt.get("epsilon", epsilon_start)
             step_count = ckpt.get("step_count", 0)
             wins = ckpt.get("wins", 0)
@@ -166,53 +209,35 @@ def train_dqn(
             if saved_mem is not None:
                 memory = deque(saved_mem, maxlen=memory_size)
 
-            # Restore roster from checkpoint if not provided or different
             ckpt_roster = ckpt.get("roster", None)
             if ckpt_roster is not None:
-                # ckpt_roster should be a mapping of bot-class-name -> count (strings)
-                # Convert names to actual classes from `src.bots` if necessary
-                bots_mod = importlib.import_module("src.bots")
 
-                def deserialize_roster(r: Dict[Any, int]):
-                    out = {}
-                    # if keys appear to already be types, return as-is
-                    any_key = next(iter(r.keys())) if len(r) > 0 else None
-                    if isinstance(any_key, type):
-                        return r
-                    for name, cnt in r.items():
-                        cls = getattr(bots_mod, name, None)
-                        if cls is None:
-                            print(f"Warning: unknown bot class name '{name}' in checkpoint roster; skipping")
-                            continue
-                        out[cls] = cnt
-                    return out
-
-                try:
-                    deserialized = deserialize_roster(ckpt_roster)
-                except Exception:
-                    deserialized = ckpt_roster
+                # Convert checkpoint roster from string-keyed JSON to canonical
+                ckpt_roster = deserialize_roster(ckpt_roster)
 
                 if roster is None:
-                    roster = deserialized
-                    env = LiarsDiceEnv(roster=roster)
-                    print("Restored roster from checkpoint and reinitialized environment.")
+                    # User did not supply a roster → use checkpoint roster
+                    roster = ckpt_roster
                 else:
-                    # compare by class-name mapping for safety
-                    def to_name_map(r):
-                        nm = {}
-                        if r is None:
-                            return nm
-                        for k, v in r.items():
-                            if isinstance(k, type):
-                                nm[k.__name__] = v
-                            else:
-                                nm[str(k)] = v
-                        return nm
+                    # If user supplied a JSON roster (string keys), convert it once
+                    if len(roster) > 0:
+                        first_key = next(iter(roster.keys()))
+                        if isinstance(first_key, str):
+                            roster = deserialize_roster(roster)
 
-                    if to_name_map(roster) != to_name_map(deserialized):
-                        print("Warning: provided roster differs from checkpoint roster. Using checkpoint roster and reinitializing environment.")
-                        roster = deserialized
-                        env = LiarsDiceEnv(roster=roster)
+                
+                def _count_val(v):
+                    if isinstance(v, dict):
+                        return int(v.get("count", 0))
+                    return int(v)
+                
+                total_players = 1 + sum(_count_val(v) for v in roster.values())
+
+                assert total_players <= MAX_PLAYERS, "Roster exceeds MAX_PLAYERS"
+
+                env = LiarsDiceEnv(roster=roster)
+
+
 
             print(f"Resuming from episode {start_episode}; epsilon={epsilon:.4f}")
         except Exception as e:
@@ -230,6 +255,8 @@ def train_dqn(
             action_index = select_action(policy_net, state, epsilon)
 
             if action_index is None:
+                assert env.game.is_game_over(), "No legal actions but game is not over!"
+                done = True
                 break
 
             next_state, reward, done, _ = env.step(action_index)
@@ -253,6 +280,11 @@ def train_dqn(
             
         epsilon = max(epsilon_min, epsilon * epsilon_decay)
         winner = env.game.get_winner()
+
+        if not env.game.is_game_over():
+            
+            print(f"[Warning] Episode {episode+1} ended but game.is_game_over() is False")
+
 
         if winner is not None and winner == env.rl_id:
             wins += 1
@@ -328,15 +360,3 @@ def train_dqn(
     plt.close()
 
     return policy_net, target_net
-
-
-    
-
-
-
-        
-        
-
-        
-
-    
