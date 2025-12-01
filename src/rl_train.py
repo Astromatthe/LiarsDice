@@ -175,6 +175,7 @@ def train_dqn(
     wins = 0
 
     win_rate_history = []
+    stage_boundaries = []
 
     # If requested, try to load checkpoint
     start_episode = 0
@@ -199,10 +200,11 @@ def train_dqn(
                 start_episode = int(raw_ep) + 1
 
 
-            epsilon = ckpt.get("epsilon", epsilon_start)
+            epsilon = epsilon_start
             step_count = ckpt.get("step_count", 0)
             wins = ckpt.get("wins", 0)
             win_rate_history = ckpt.get("win_rate_history", [])
+            stage_boundaries = ckpt.get("stage_boundaries", [])
 
             # If memory was saved, reload it (saved as list)
             saved_mem = ckpt.get("memory", None)
@@ -275,7 +277,7 @@ def train_dqn(
                 gamma=gamma
             )
 
-            if step_count % target_update_freq == 0:
+            if target_update_freq > 0 and step_count % target_update_freq == 0:
                 target_net.load_state_dict(policy_net.state_dict())
             
         epsilon = max(epsilon_min, epsilon * epsilon_decay)
@@ -311,6 +313,7 @@ def train_dqn(
                 "step_count": step_count,
                 "wins": wins,
                 "win_rate_history": win_rate_history,
+                "stage_boundaries": stage_boundaries,
                 "memory": list(memory),
                 "roster": roster_serial,
             }
@@ -320,7 +323,7 @@ def train_dqn(
             except Exception as e:
                 print(f"Failed to save checkpoint: {e}")
 
-
+    stage_boundaries.append(episodes-1)
     # Save final checkpoint
     if checkpoint_path is not None:
         roster_serial = {}
@@ -341,6 +344,7 @@ def train_dqn(
             "step_count": step_count,
             "wins": wins,
             "win_rate_history": win_rate_history,
+            "stage_boundaries": stage_boundaries,
             "memory": list(memory),
             "roster": roster_serial,
         }
@@ -352,11 +356,19 @@ def train_dqn(
 
     print()
 
-    plt.plot(win_rate_history)
-    plt.xlabel("Episode")
-    plt.ylabel("Cumulative Win Rate")
-    plt.title("DQN RL-Bot Win Rate vs Training Episodes")
-    plt.savefig("win_rate.png")
+    plt.figure(figsize=(10, 5))
+    episodes_axis = range(1, len(win_rate_history) + 1)
+
+    plt.plot(episodes_axis, win_rate_history, linewidth=2.0, color="#1f77b4", label="Win Rate")
+    plt.xlabel("Episode", fontsize=14)
+    plt.ylabel("Cumulative Win Rate", fontsize=14)
+    plt.title("DQN Agent Training Performance", fontsize=16, pad=15)
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+    for boundary in stage_boundaries:
+        if boundary < len(win_rate_history) - 1:   # avoid line at final episode
+            plt.axvline(x=boundary, linestyle='--', color='gray', linewidth=1)
+    plt.savefig("win_rate.png", dpi=300)
     plt.close()
 
     return policy_net, target_net

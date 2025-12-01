@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from src.encode import decode_rl_action, encode_rl_state, encode_rl_action
 from src.beliefs import OpponentBelief
-from config import FACE_COUNT
+from config import FACE_COUNT, MAX_STATE_DIM
 
 
 
@@ -240,23 +240,34 @@ class AggressiveBot(_StatBot):
             return("call", None)
         
 
+
+
 class DQNBot:
-    def __init__(self, pid, policy_net, total_players, device = 'cpu', epsilon=0.0):
+    """
+    A self-play bot whose behavior is EXACTLY consistent with:
+      - rl_train.select_action()
+      - rl_env.get_legal_action_indices()
+      - encode_rl_state() / decode_rl_action()
 
-        """
-        pid           : this bot's player id in the game
-        policy_net    : trained DQN model (already constructed)
-        total_players : total number of players in the game
-        device        : 'cpu' or 'cuda'
-        epsilon       : usually 0.0 for evaluation/self-play
-        """
+    It uses the same action space, same legal-action logic,
+    same masking logic, and same state encoding as the RL agent.
 
+    This ensures training-time and inference-time policies match
+    1:1 and prevents illegal actions or corrupted game states.
+    """
+
+    
+
+    def __init__(self, pid, policy_net, total_players, device="cpu", epsilon=0.0):
         self.pid = pid
         self.policy_net = policy_net.to(device)
         self.policy_net.eval()
-        self.device = device
-        self.epsilon = epsilon
 
+        self.device = device
+        self.epsilon = epsilon 
+        self.total_players = total_players
+
+        
         self.opponent_beliefs = {
             p: OpponentBelief()
             for p in range(total_players)
@@ -264,64 +275,94 @@ class DQNBot:
         }
 
         assert self.pid not in self.opponent_beliefs
-    
-    def act(self, game):
-        state_vec = self._build_state(game)
 
-        # Build legal action indices from the game object (avoid importing rl_env to prevent circular imports)
-        legal_bids = game.get_legal_bids()
-        legal_actions = ["call"] + legal_bids if legal_bids else ["call"]
-        legal_indices = [encode_rl_action(a) for a in legal_actions]
-
-        if len(legal_indices) == 0:
-            return ("call", None)
-
-        # Exploration
-        if random.random() < self.epsilon:
-            idx = int(random.choice(legal_indices))
-            act = decode_rl_action(idx)
-            return ("call", None) if act == "call" else ("bid", act)
-
-        # Exploitation: evaluate Q-values and mask illegal actions
-        state_t = torch.tensor(state_vec, dtype=torch.float32).unsqueeze(0)
-        with torch.no_grad():
-            qvals = self.policy_net(state_t).squeeze(0)
-
-        masked_q = torch.full_like(qvals, float("-inf"))
-        legal_t = torch.tensor(legal_indices, dtype=torch.long)
-        masked_q[legal_t] = qvals[legal_t]
-
-        best = int(torch.argmax(masked_q).item())
-        action = decode_rl_action(best)
-        return ("call", None) if action == "call" else ("bid", action)
-        
+   
+    # Build RL State 
     def _build_state(self, game):
-
         total_dice = sum(game.dice_counts)
 
-        faces = game.dice[self.pid]
-        agent_dice_vec = [faces.count(f) for f in range(1, FACE_COUNT + 1)]
+        my_faces = game.dice[self.pid]
+        agent_dice_vec = [my_faces.count(f) for f in range(1, FACE_COUNT + 1)]
         agent_dice_count = game.dice_counts[self.pid]
 
-        current_bid = game.current_bid
+        current_bid = game.current_bid  # list of [q,f]
 
-        opponent_beliefs = []
-        for p in self.opponent_beliefs.keys():
+        # opponent beliefs (in consistent order)
+        opponent_belief_vecs = []
+        for p in range(self.total_players):
             if p == self.pid:
                 continue
             belief = self.opponent_beliefs[p]
-            opponent_beliefs.append(belief.sample_belief().tolist())
+            opponent_belief_vecs.append(belief.sample_belief().tolist())
 
         terminal_flag = int(game.is_game_over())
 
-        return encode_rl_state(
+        state_vec = encode_rl_state(
             total_dice=total_dice,
             agent_dice_count=agent_dice_count,
             agent_dice_vector=agent_dice_vec,
             current_bid=current_bid,
-            opponent_beliefs=opponent_beliefs,
+            opponent_beliefs=opponent_belief_vecs,
             terminal_flag=terminal_flag
         )
+
+        # ensure matches MAX_STATE_DIM
+        assert len(state_vec) == MAX_STATE_DIM, \
+            f"DQNBot: incorrect state dim {len(state_vec)} != {MAX_STATE_DIM}"
+
+        return state_vec
+
+    
+    # Compute action like rl_train.select_action
+    def act(self, game):
+        from src.rl_env import get_legal_action_indices
+        # Build RL-format state vec
+        state_vec = self._build_state(game)
+
+        # Compute legal action indices 
+        legal_indices = get_legal_action_indices(state_vec)  
+
+        if len(legal_indices) == 0:
+            # If terminal or weird edge case, default CALL
+            assert game.is_game_over(), "DQNBot: no legal actions but game is not over."
+            return ("call", None)
+
+        # eps-greedy (rare, usually epsilon=0.0 for evaluation)
+        if random.random() < self.epsilon:
+            idx = int(random.choice(legal_indices))
+            decoded = decode_rl_action(idx)
+            return ("call", None) if decoded == "call" else ("bid", decoded)
+
+        # Exploitation — identical to training loop
+        state_t = torch.tensor(state_vec, dtype=torch.float32).unsqueeze(0).to(self.device)
+
+        with torch.no_grad():
+            q_vals = self.policy_net(state_t).squeeze(0)
+
+        # initialize masked Q to -inf
+        masked_q = torch.full_like(q_vals, float("-inf"))
+
+        legal_t = torch.tensor(legal_indices, dtype=torch.long, device=self.device)
+        masked_q[legal_t] = q_vals[legal_t]
+
+        best_idx = int(torch.argmax(masked_q).item())
+        decoded = decode_rl_action(best_idx)
+
+        # decode into game action
+        if decoded == "call":
+            return ("call", None)
+        else:
+            return ("bid", decoded)
+
+    
+    def update_belief_from_bid(self, bidder_pid, bid):
+        """
+        If external code calls this, ensure that self-play bot
+        updates its internal beliefs like RL env does.
+        """
+        if bidder_pid in self.opponent_beliefs:
+            self.opponent_beliefs[bidder_pid].update_from_bid(bid)
+
         
 
 
