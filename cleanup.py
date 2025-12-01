@@ -4,7 +4,9 @@ import shutil
 
 SAVE_FILES = [
     "checkpoint.pt",
-    "roster.json"
+    "roster.json",
+    "win_rate.png",
+    "results.csv"
 ]
 
 AGENTS_DIR = "agents"

@@ -1,0 +1,15 @@
+[
+    {
+        "RandomBot": 1
+    },
+    {
+        "RiskyBot": 1
+    },
+    {
+        "RiskAverseBot": 1
+    },
+    {
+        "RiskyBot": 1,
+        "RiskAverseBot": 1
+    }
+]

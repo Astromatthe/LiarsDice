@@ -66,7 +66,7 @@ class LiarsDiceEnv:
                         else:
                             # assume file is raw state_dict
                             model.load_state_dict(ckpt)
-                        print(f"Loaded DQN model for opponent from {model_path}")
+                        #print(f"Loaded DQN model for opponent from {model_path}")
                     except Exception as e:
                         print(f"Failed to load DQN model from {model_path}: {e}\nUsing uninitialized model.")
                     # instantiate bot with model and n_players placeholder; DQNBot expects (pid, model, n_players)
