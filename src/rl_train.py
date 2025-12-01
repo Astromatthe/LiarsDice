@@ -248,7 +248,7 @@ def train_dqn(
     ### Main Training Loop ###
 
     for episode in range(start_episode, episodes):
-        print(f"\rCurrent episode: {episode+1}", end="", flush=True)
+        #print(f"\rCurrent episode: {episode+1}", end="", flush=True)
         state = env.reset()
         done = False
 
@@ -354,7 +354,7 @@ def train_dqn(
         except Exception as e:
             print(f"Failed to save final checkpoint: {e}")
 
-    print()
+    #print()
 
     plt.figure(figsize=(10, 5))
     episodes_axis = range(1, len(win_rate_history) + 1)
@@ -367,7 +367,7 @@ def train_dqn(
     plt.tight_layout()
     for boundary in stage_boundaries:
         if boundary < len(win_rate_history) - 1:   # avoid line at final episode
-            plt.axvline(x=boundary, linestyle='--', color='gray', linewidth=1)
+            plt.axvline(x=boundary, linestyle='--', color='red', linewidth=1)
     plt.savefig("win_rate.png", dpi=300)
     plt.close()
 
