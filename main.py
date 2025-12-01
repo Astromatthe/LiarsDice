@@ -107,9 +107,10 @@ if __name__ == "__main__":
                         help="Run the DQN training loop instead of launching GUI")
     parser.add_argument("--episodes", type=int, default=1000)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--gamma", type=float, default=0.99)
-    parser.add_argument("--batch", type=int, default=64)
-    parser.add_argument("--buffer", type=int, default=10000)
+    parser.add_argument("--eps_start", type=float,default=1.0)
+    parser.add_argument("--eps_end", type=float, default= 0.01)
+    parser.add_argument("--eps_decay", type=float, default = 0.995)
+    parser.add_argument("--update",type=int, default=1000)
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--save_every", type=int, default=100)
@@ -149,14 +150,14 @@ if __name__ == "__main__":
         start_time = time.perf_counter()
         policy, target = train_dqn(
             episodes=args.episodes,
-            batch_size=args.batch,
+            batch_size=64,
             learning_rate=args.lr,
-            gamma=args.gamma,
-            epsilon_start=1.0,
-            epsilon_min=0.01,
-            epsilon_decay=0.995,
-            target_update_freq=1000,
-            memory_size=args.buffer,
+            gamma=0.99,
+            epsilon_start=args.eps_start,
+            epsilon_min=args.eps_end,
+            epsilon_decay=args.eps_decay,
+            target_update_freq=args.update,
+            memory_size=10000,
             device="cpu",
             checkpoint_path=args.checkpoint,
             resume=args.resume,
