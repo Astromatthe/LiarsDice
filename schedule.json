@@ -1,0 +1,35 @@
+[
+    {
+        "episodes": 2000,
+        "roster": { "RiskyBot": 1 },
+        "eps_start": 1.0,
+        "eps_min": 0.05,
+        "eps_min_at": 0.70,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 2000,
+        "roster": {
+            "RiskyBot": 1,
+            "DQNBot": { "count": 1, "model": "agents/agent_1.pt" }
+        },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.0003,
+        "update": 1500
+    },
+    {
+        "episodes": 3000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_2.pt" },
+            "RiskyBot": 1
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.0001,
+        "update": 1500
+    }
+]
