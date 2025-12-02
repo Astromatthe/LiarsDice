@@ -1,27 +1,221 @@
 [
     {
-        "episodes": 2000,
-        "roster": { "RiskyBot": 1 },
-        "eps_start": 1.0,
+        "episodes": 1000,
+        "roster": { "RandomBot": 1 },
+        "eps_start": 0.9,
         "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.0005,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
         "update": 1500
     },
     {
-        "episodes": 2000,
+        "episodes": 1000,
+        "roster": { "AggressiveBot": 1 },
+        "eps_start": 0.9,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": { "ConservativeBot": 1 },
+        "eps_start": 0.9,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": { "RiskyBot": 1 },
+        "eps_start": 0.9,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": { "RiskAverseBot": 1 },
+        "eps_start": 0.9,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+    
+    
+
+
+    {
+        "episodes": 1000,
         "roster": {
-            "RiskyBot": 1,
-            "DQNBot": { "count": 1, "model": "agents/agent_1.pt" }
+            "RiskAverseBot": 1,
+            "RiskyBot": 1
         },
         "eps_start": 0.3,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.0003,
+        "lr": 0.01,
         "update": 1500
     },
     {
-        "episodes": 3000,
+        "episodes": 1000,
+        "roster": {
+            "RiskyBot": 1,
+            "RandomBot": 1
+        },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "RandomBot": 1,
+            "RiskAverseBot": 1
+        },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "RiskAverseBot": 2
+        },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "RiskyBot": 2
+        },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "RandomBot": 2
+        },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.50,
+        "lr": 0.01,
+        "update": 1500
+    },
+
+
+
+
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" }
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" }
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 2, "model": "agents/agent_5.pt" }
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
+            "RiskAverseBot": 1
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
+            "RiskyBot": 1
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
+            "RandomBot": 1
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
+            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" }
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_2.pt" },
+            "RiskAverseBot": 1
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
         "roster": {
             "DQNBot": { "count": 1, "model": "agents/agent_2.pt" },
             "RiskyBot": 1
@@ -29,7 +223,30 @@
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.0001,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_2.pt" },
+            "RandomBot": 1
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 2, "model": "agents/agent_2.pt" }
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.01,
         "update": 1500
     }
 ]
