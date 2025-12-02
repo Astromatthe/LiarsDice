@@ -23,7 +23,7 @@ class DQN(nn.Module):
 class DRONMoE(nn.Module):
     """DRON-MoE network for opponent learning using Mixture-of-Experts."""
 
-    def __init__(self, state_dim: int, action_dim: int, non_opp_dim: int, opp_dim: int, num_experts: int = 3, hidden_dim: int = 128, gate_hidden: int = 64, prefix_dim: int = 10):
+    def __init__(self, state_dim: int, action_dim: int, non_opp_dim: int, opp_dim: int, num_experts: int = 6, hidden_dim: int = 128, gate_hidden: int = 128, prefix_dim: int = 10):
         super().__init__()
         self.non_opp_dim = non_opp_dim
         self.opp_dim = opp_dim

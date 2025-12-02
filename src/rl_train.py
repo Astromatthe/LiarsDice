@@ -12,7 +12,7 @@ import os
 from typing import Dict, Any
 import importlib
 from src.dqn_model import DQN, DRONMoE
-
+from tqdm import tqdm
 
 
 def select_action(policy_net, state_vec, epsilon):
@@ -39,7 +39,8 @@ def select_action(policy_net, state_vec, epsilon):
     
     # Exploitation
     # Convert state to torch tensor [1, state_dim]
-    state_t = torch.tensor(state_vec, dtype = torch.float32).unsqueeze(0)
+    device = next(policy_net.parameters()).device
+    state_t = torch.tensor(state_vec, dtype = torch.float32, device=device).unsqueeze(0)
 
     with torch.no_grad():
         q_values = policy_net(state_t).squeeze(0)
@@ -47,7 +48,7 @@ def select_action(policy_net, state_vec, epsilon):
     # illegal actions initialized to -inf
     masked_q = torch.full_like(q_values, float("-inf"))
 
-    legal_t = torch.tensor(legal_actions, dtype=torch.long)
+    legal_t = torch.tensor(legal_actions, dtype=torch.long, device=device)
 
     masked_q[legal_t] = q_values[legal_t]
 
@@ -60,15 +61,17 @@ def select_action(policy_net, state_vec, epsilon):
 def optimize_model(memory, batch_size, policy_net, target_net, optimizer, gamma):
     if len(memory) < batch_size:
         return
+    
+    device = next(policy_net.parameters()).device
 
     batch = random.sample(memory, batch_size)
     s_batch, a_batch, r_batch, sp_batch, done_batch = zip(*batch)
 
-    state_batch = torch.tensor(np.array(s_batch), dtype=torch.float32)
-    action_batch = torch.tensor(a_batch, dtype=torch.long).unsqueeze(1)
-    reward_batch = torch.tensor(r_batch, dtype=torch.float32)
-    next_state_batch = torch.tensor(np.array(sp_batch), dtype=torch.float32)
-    done_batch = torch.tensor(done_batch, dtype=torch.float32)
+    state_batch = torch.tensor(np.array(s_batch), dtype=torch.float32, device=device)
+    action_batch = torch.tensor(a_batch, dtype=torch.long, device=device).unsqueeze(1)
+    reward_batch = torch.tensor(r_batch, dtype=torch.float32, device=device)
+    next_state_batch = torch.tensor(np.array(sp_batch), dtype=torch.float32, device=device)
+    done_batch = torch.tensor(done_batch, dtype=torch.float32, device=device)
 
     q_values = policy_net(state_batch).gather(1, action_batch).squeeze(1)
 
@@ -92,7 +95,7 @@ def optimize_model(memory, batch_size, policy_net, target_net, optimizer, gamma)
             max_next_q = torch.max(masked_q_i).item()
             max_next_q_list.append(max_next_q)
         
-        max_next_q_values = torch.tensor(max_next_q_list, dtype = torch.float32)
+        max_next_q_values = torch.tensor(max_next_q_list, dtype = torch.float32, device=device)
 
         target_q_values = reward_batch + gamma * max_next_q_values * (1 - done_batch)
         
@@ -268,7 +271,8 @@ def train_dqn(
 
     ### Main Training Loop ###
 
-    for episode in range(start_episode, episodes):
+    pbar = tqdm(range(start_episode, episodes), desc="Training", ncols=100)
+    for episode in pbar:
         #print(f"\rCurrent episode: {episode+1}", end="", flush=True)
         state = env.reset()
         done = False

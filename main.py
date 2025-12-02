@@ -6,6 +6,7 @@ import random
 import json
 import os
 import importlib
+import torch
 
 ## TEST
 def main():
@@ -115,6 +116,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--save_every", type=int, default=100)
     parser.add_argument("--model_type", type=str, default="dqn", choices=["dqn", "dron_moe"], help="Which Q-network architecture to train - DQN or DRON-MoE")
+    parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"], help="Use CPU or GPU for network")
 
     args = parser.parse_args()
 
@@ -149,6 +151,12 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Failed to load roster file {roster_file}: {e}")
         start_time = time.perf_counter()
+        if torch.cuda.is_available() and args.device == "cuda":
+            print("CUDA available, using GPU acceleration")
+            device = torch.device("cuda")
+        else:
+            print("CUDA not used, using CPU.")
+            device = torch.device("cpu")
         policy, target = train_dqn(
             episodes=args.episodes,
             batch_size=64,
@@ -159,7 +167,7 @@ if __name__ == "__main__":
             epsilon_decay=args.eps_decay,
             target_update_freq=args.update,
             memory_size=10000,
-            device="cpu",
+            device=device,
             checkpoint_path=args.checkpoint,
             resume=args.resume,
             save_every=args.save_every,
