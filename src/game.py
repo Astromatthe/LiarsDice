@@ -46,7 +46,10 @@ def _create_players_from_types(types: List[str]) -> List[object]:
 
 class LiarsDiceGame:
 
-    def __init__(self, players, player_types: List[str] | None = None):
+    def __init__(self, 
+             players, 
+             player_types: List[str] | None = None, 
+             save_history: bool = True):
         self.players = players
         self.player_types = player_types or self.infer_player_types()
         self.n_players = len(players)
@@ -60,6 +63,7 @@ class LiarsDiceGame:
         self.last_bidder = None
         self.current_player = 0  # index of current player
         self.round_active = False
+        self.save_history = save_history
     
     def active_players(self) -> List[int]:
         """Returns a list of active player indices."""
@@ -174,6 +178,16 @@ class LiarsDiceGame:
             self.round_active = False
             if not self.is_game_over():
                 self.deal(starting_player=starter)
+            else:
+                # game over
+                winner = self.get_winner()
+                self.full_history.append({"winner": winner})
+
+                if self.save_history:
+                    save_path = self.save_history_json()
+                    print(f"Game over! Winner: P{winner}. Game history saved to {save_path}")
+                self.current_player = None
+
             return result
         else:
             return {"error": "invalid_action"}
@@ -188,7 +202,7 @@ class LiarsDiceGame:
         """
         types = list(player_types)
         players = _create_players_from_types(types)
-        g = cls(players)
+        g = cls(players, player_types=types, save_history=save_json)
         g.deal(starting_player=0)
 
         # If any human present -> use GUI (blocking until GUI exit), else run headless bots-only loop
@@ -249,7 +263,8 @@ class LiarsDiceGame:
     def get_legal_bids(self):
         """Return list of legal bids [q,f] given current bid and current total dice."""
         legal = []
-        for q in range(1, self.total_dice + 1):
+        current_total = sum(self.dice_counts)
+        for q in range(1, current_total + 1):
             for f in range(1, FACE_COUNT + 1):
                 if is_bid_higher(self.current_bid, [q, f]):
                     legal.append([q, f])

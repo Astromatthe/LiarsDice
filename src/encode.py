@@ -1,4 +1,4 @@
-from config import FACE_COUNT
+from config import FACE_COUNT, MAX_OPPONENTS
 from typing import List
 
 
@@ -13,6 +13,9 @@ def encode_rl_state(
 ) -> List[float]:
     """Producuced DQN input vector"""
 
+    assert len(opponent_beliefs) <= MAX_OPPONENTS, \
+        f"Too many opponents provided to encode_rl_state: got {len(opponent_beliefs)}, max is {MAX_OPPONENTS}"
+
     state = []
     
 
@@ -20,9 +23,14 @@ def encode_rl_state(
     state.append(agent_dice_count)
     state.extend(agent_dice_vector)
     state.extend(current_bid)
+
+    actual = len(opponent_beliefs)
     
     for belief in opponent_beliefs:
         state.extend(belief)
+    
+    for _ in range(MAX_OPPONENTS - actual):
+        state.extend([0]*FACE_COUNT)
     
     state.append(terminal_flag)
 

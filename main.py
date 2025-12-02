@@ -1,9 +1,11 @@
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskyBot, RiskAverseBot, ConservativeBot, AggressiveBot
 from src.gui import LiarsDiceGUI
-#from src.state import *
 import tkinter as tk
 import random
+import json
+import os
+import importlib
 
 ## TEST
 def main():
@@ -97,4 +99,73 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    import time
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train", action="store_true",
+                        help="Run the DQN training loop instead of launching GUI")
+    parser.add_argument("--episodes", type=int, default=1000)
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--eps_start", type=float,default=1.0)
+    parser.add_argument("--eps_end", type=float, default= 0.01)
+    parser.add_argument("--eps_decay", type=float, default = 0.995)
+    parser.add_argument("--update",type=int, default=1000)
+    parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--save_every", type=int, default=100)
+
+    args = parser.parse_args()
+
+    if args.train:
+        from src.rl_train import train_dqn
+        # Load roster from file if present (no CLI flags required)
+        roster = None
+        roster_file = os.environ.get("ROSTER_FILE", "roster.json")
+        if args.checkpoint is None:
+            # if no checkpoint CLI flag provided, still attempt default roster file
+            pass
+        if os.path.exists(roster_file):
+            try:
+                with open(roster_file, "r") as f:
+                    raw = json.load(f)
+                # raw expected format: { "RandomBot": 1, "RiskyBot": 1 }
+                bots_mod = importlib.import_module("src.bots")
+                roster = {}
+                for name, cnt in raw.items():
+                    cls = getattr(bots_mod, name, None)
+                    if cls is None:
+                        print(f"Warning: unknown bot name '{name}' in {roster_file}; skipping")
+                        continue
+                    # allow either int (count) or dict {"count": n, "model": "path.pt"}
+                    if isinstance(cnt, dict):
+                        c = int(cnt.get("count", 0))
+                        model = cnt.get("model", None)
+                        roster[cls] = {"count": c, "model": model}
+                    else:
+                        roster[cls] = int(cnt)
+                print(f"Loaded roster from {roster_file}: {raw}")
+            except Exception as e:
+                print(f"Failed to load roster file {roster_file}: {e}")
+        start_time = time.perf_counter()
+        policy, target = train_dqn(
+            episodes=args.episodes,
+            batch_size=64,
+            learning_rate=args.lr,
+            gamma=0.99,
+            epsilon_start=args.eps_start,
+            epsilon_min=args.eps_end,
+            epsilon_decay=args.eps_decay,
+            target_update_freq=args.update,
+            memory_size=10000,
+            device="cpu",
+            checkpoint_path=args.checkpoint,
+            resume=args.resume,
+            save_every=args.save_every,
+            roster=roster,
+        )
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time
+        print(f"Training time: {elapsed_time:.2f} s")
+    else:
+        main()   # launches GUI mode

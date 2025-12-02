@@ -4,6 +4,12 @@ from src.players import Player
 from src.rules import is_bid_higher
 from typing import List
 import numpy as np
+import torch
+from src.encode import decode_rl_action, encode_rl_state, encode_rl_action
+from src.beliefs import OpponentBelief
+from config import FACE_COUNT, MAX_STATE_DIM
+
+
 
 class RandomBot(Player):
     def act(self, game):
@@ -11,7 +17,8 @@ class RandomBot(Player):
         # choose either to call or to make a legal higher bid
         choices = ["call"]
         legal_bids = [] 
-        for q in range(1, game.total_dice + 1):
+        current_total = sum(game.dice_counts)
+        for q in range(1, current_total + 1):
             for f in range(1, 7):
                 if is_bid_higher(game.current_bid, [q, f]):
                     legal_bids.append([q, f])   # all legal higher bids
@@ -231,3 +238,131 @@ class AggressiveBot(_StatBot):
         else:
             # print(f"[DEBUG] Making call of {own_faces} vs {bid}")
             return("call", None)
+        
+
+
+
+class DQNBot:
+    """
+    A self-play bot whose behavior is EXACTLY consistent with:
+      - rl_train.select_action()
+      - rl_env.get_legal_action_indices()
+      - encode_rl_state() / decode_rl_action()
+
+    It uses the same action space, same legal-action logic,
+    same masking logic, and same state encoding as the RL agent.
+
+    This ensures training-time and inference-time policies match
+    1:1 and prevents illegal actions or corrupted game states.
+    """
+
+    
+
+    def __init__(self, pid, policy_net, total_players, device="cpu", epsilon=0.0):
+        self.pid = pid
+        self.policy_net = policy_net.to(device)
+        self.policy_net.eval()
+
+        self.device = device
+        self.epsilon = epsilon 
+        self.total_players = total_players
+
+        
+        self.opponent_beliefs = {
+            p: OpponentBelief()
+            for p in range(total_players)
+            if p != self.pid
+        }
+
+        assert self.pid not in self.opponent_beliefs
+
+   
+    # Build RL State 
+    def _build_state(self, game):
+        total_dice = sum(game.dice_counts)
+
+        my_faces = game.dice[self.pid]
+        agent_dice_vec = [my_faces.count(f) for f in range(1, FACE_COUNT + 1)]
+        agent_dice_count = game.dice_counts[self.pid]
+
+        current_bid = game.current_bid  # list of [q,f]
+
+        # opponent beliefs (in consistent order)
+        opponent_belief_vecs = []
+        for p in range(self.total_players):
+            if p == self.pid:
+                continue
+            belief = self.opponent_beliefs[p]
+            opponent_belief_vecs.append(belief.sample_belief().tolist())
+
+        terminal_flag = int(game.is_game_over())
+
+        state_vec = encode_rl_state(
+            total_dice=total_dice,
+            agent_dice_count=agent_dice_count,
+            agent_dice_vector=agent_dice_vec,
+            current_bid=current_bid,
+            opponent_beliefs=opponent_belief_vecs,
+            terminal_flag=terminal_flag
+        )
+
+        # ensure matches MAX_STATE_DIM
+        assert len(state_vec) == MAX_STATE_DIM, \
+            f"DQNBot: incorrect state dim {len(state_vec)} != {MAX_STATE_DIM}"
+
+        return state_vec
+
+    
+    # Compute action like rl_train.select_action
+    def act(self, game):
+        from src.rl_env import get_legal_action_indices
+        # Build RL-format state vec
+        state_vec = self._build_state(game)
+
+        # Compute legal action indices 
+        legal_indices = get_legal_action_indices(state_vec)  
+
+        if len(legal_indices) == 0:
+            # If terminal or weird edge case, default CALL
+            assert game.is_game_over(), "DQNBot: no legal actions but game is not over."
+            return ("call", None)
+
+        # eps-greedy (rare, usually epsilon=0.0 for evaluation)
+        if random.random() < self.epsilon:
+            idx = int(random.choice(legal_indices))
+            decoded = decode_rl_action(idx)
+            return ("call", None) if decoded == "call" else ("bid", decoded)
+
+        # Exploitation — identical to training loop
+        state_t = torch.tensor(state_vec, dtype=torch.float32).unsqueeze(0).to(self.device)
+
+        with torch.no_grad():
+            q_vals = self.policy_net(state_t).squeeze(0)
+
+        # initialize masked Q to -inf
+        masked_q = torch.full_like(q_vals, float("-inf"))
+
+        legal_t = torch.tensor(legal_indices, dtype=torch.long, device=self.device)
+        masked_q[legal_t] = q_vals[legal_t]
+
+        best_idx = int(torch.argmax(masked_q).item())
+        decoded = decode_rl_action(best_idx)
+
+        # decode into game action
+        if decoded == "call":
+            return ("call", None)
+        else:
+            return ("bid", decoded)
+
+    
+    def update_belief_from_bid(self, bidder_pid, bid):
+        """
+        If external code calls this, ensure that self-play bot
+        updates its internal beliefs like RL env does.
+        """
+        if bidder_pid in self.opponent_beliefs:
+            self.opponent_beliefs[bidder_pid].update_from_bid(bid)
+
+        
+
+
