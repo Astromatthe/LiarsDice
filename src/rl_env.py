@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from config import FACE_COUNT, MAX_STATE_DIM, MAX_PLAYERS, NUM_ACTIONS
+from config import FACE_COUNT, MAX_STATE_DIM, MAX_PLAYERS, NUM_ACTIONS, OPPONENT_FEATURE_DIM, NON_OPPONENT_FEATURE_DIM, DRON_MOE_NUM_EXPERTS, DRON_MOE_HIDDEN
 from src.game import LiarsDiceGame
 from src.bots import RandomBot, RiskAverseBot, RiskyBot
 from src.beliefs import OpponentBelief
@@ -8,7 +8,7 @@ from src.rules import is_bid_higher
 import random
 import numpy as np
 import torch
-from src.dqn_model import DQN
+from src.dqn_model import DQN, DRONMoE
 import os
 
 
@@ -57,14 +57,20 @@ class LiarsDiceEnv:
 
                 if name == "DQNBot" and model_path is not None and os.path.exists(model_path):
                     # build model with correct dimensions and load weights
-                    model = DQN(MAX_STATE_DIM, NUM_ACTIONS)
+                    
                     try:
                         ckpt = torch.load(model_path, map_location="cpu")
                         # If checkpoint contains policy_state dict, use it
                         if isinstance(ckpt, dict) and "policy_state" in ckpt:
+                            model_type = ckpt.get("model_type", "dqn")
+                            if model_type == "dron_moe":
+                                model = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN)
+                            else:
+                                model = DQN(MAX_STATE_DIM, NUM_ACTIONS)
                             model.load_state_dict(ckpt["policy_state"])
                         else:
                             # assume file is raw state_dict
+                            model = DQN(MAX_STATE_DIM, NUM_ACTIONS)
                             model.load_state_dict(ckpt)
                         #print(f"Loaded DQN model for opponent from {model_path}")
                     except Exception as e:

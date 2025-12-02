@@ -6,12 +6,12 @@ from src.rl_env import LiarsDiceEnv, get_legal_action_indices
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from config import NUM_ACTIONS, MAX_STATE_DIM, MAX_PLAYERS
+from config import NUM_ACTIONS, MAX_STATE_DIM, MAX_PLAYERS, DRON_MOE_NUM_EXPERTS, NON_OPPONENT_FEATURE_DIM, OPPONENT_FEATURE_DIM, DRON_MOE_HIDDEN, DRON_MOE_GATE_HIDDEN
 import matplotlib.pyplot as plt
 import os
 from typing import Dict, Any
 import importlib
-from src.dqn_model import DQN
+from src.dqn_model import DQN, DRONMoE
 
 
 
@@ -154,14 +154,31 @@ def train_dqn(
     checkpoint_path: str = None,
     resume: bool = False,
     save_every: int = 100,
-    roster = None
+    roster = None,
+    model_type = "dqn"
 ):
     env = LiarsDiceEnv(roster=roster)
 
-    
+    def build_model(model_type: str):
+        if model_type == "dron_moe":
+            return DRONMoE(
+                state_dim=MAX_STATE_DIM,
+                action_dim=NUM_ACTIONS,
+                non_opp_dim=NON_OPPONENT_FEATURE_DIM,
+                opp_dim=OPPONENT_FEATURE_DIM,
+                num_experts=DRON_MOE_NUM_EXPERTS,
+                hidden_dim=DRON_MOE_HIDDEN,
+                gate_hidden=DRON_MOE_GATE_HIDDEN,
+                prefix_dim=10
+            )
+        else:
+            hidden_dim = 128
+            return DQN(MAX_STATE_DIM, NUM_ACTIONS, hidden_dim=hidden_dim)
 
-    policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
-    target_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    # policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    # target_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    policy_net = build_model(model_type).to(device)
+    target_net = build_model(model_type).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     optimizer = optim.Adam(policy_net.parameters(), lr = learning_rate)
@@ -182,6 +199,10 @@ def train_dqn(
     if resume and checkpoint_path is not None and os.path.exists(checkpoint_path):
         print(f"Loading checkpoint from {checkpoint_path}")
         ckpt = torch.load(checkpoint_path, map_location=device)
+        model_type = ckpt.get("model_type", "dqn")
+        policy_net = build_model(model_type).to(device)
+        target_net = build_model(model_type).to(device)
+        optimizer = optim.Adam(policy_net.parameters(), lr = learning_rate)
         try:
             policy_net.load_state_dict(ckpt["policy_state"])
             target_state = ckpt.get("target_state", None)
@@ -316,6 +337,7 @@ def train_dqn(
                 "stage_boundaries": stage_boundaries,
                 "memory": list(memory),
                 "roster": roster_serial,
+                "model_type": model_type,
             }
             try:
                 torch.save(ckpt, checkpoint_path)
@@ -347,6 +369,7 @@ def train_dqn(
             "stage_boundaries": stage_boundaries,
             "memory": list(memory),
             "roster": roster_serial,
+            "model_type": model_type,
         }
         try:
             torch.save(ckpt, checkpoint_path)

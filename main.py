@@ -114,6 +114,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--save_every", type=int, default=100)
+    parser.add_argument("--model_type", type=str, default="dqn", choices=["dqn", "dron_moe"], help="Which Q-network architecture to train - DQN or DRON-MoE")
 
     args = parser.parse_args()
 
@@ -163,6 +164,7 @@ if __name__ == "__main__":
             resume=args.resume,
             save_every=args.save_every,
             roster=roster,
+            model_type=args.model_type,
         )
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
