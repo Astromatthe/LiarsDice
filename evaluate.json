@@ -8,8 +8,32 @@
     {
         "RiskAverseBot": 1
     },
+
     {
-        "RiskyBot": 1,
-        "RiskAverseBot": 1
+        "RandomBot": 1,
+        "AggressiveBot": 1
+    },
+    {
+        "AggressiveBot": 1,
+        "ConservativeBot": 1
+    },
+    {
+        "ConservativeBot": 1,
+        "RandomBot": 1
+    },
+    {
+        "RandomBot": 2
+    },
+    {
+        "AggressiveBot": 2
+    },
+    {
+        "ConservativeBot": 2
+    },
+    {
+        "RiskAverseBot": 2
+    },
+    {
+        "RiskyBot": 2
     }
 ]

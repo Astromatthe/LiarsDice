@@ -1,0 +1,252 @@
+[
+    {
+        "episodes": 1000,
+        "roster": { "RandomBot": 1 },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": { "AggressiveBot": 1 },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": { "ConservativeBot": 1 },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": { "RiskyBot": 1 },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": { "RiskAverseBot": 1 },
+        "eps_start": 0.3,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    
+    
+
+
+    {
+        "episodes": 1000,
+        "roster": {
+            "ConservativeBot": 1,
+            "AggressiveBot": 1
+        },
+        "eps_start": 0.15,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "AggressiveBot": 1,
+            "RandomBot": 1
+        },
+        "eps_start": 0.15,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "RandomBot": 1,
+            "ConservativeBot": 1
+        },
+        "eps_start": 0.15,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "ConservativeBot": 2
+        },
+        "eps_start": 0.15,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "AggressiveBot": 2
+        },
+        "eps_start": 0.15,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "RandomBot": 2
+        },
+        "eps_start": 0.15,
+        "eps_min": 0.05,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
+        "update": 1500
+    },
+
+
+
+
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" }
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" }
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 2, "model": "agents/agent_5.pt" }
+        },
+        "eps_start": 0.2,
+        "eps_min": 0.05,
+        "eps_min_at": 0.40,
+        "lr": 0.001,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
+            "ConservativeBot": 1
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
+            "AggressiveBot": 1
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
+            "RandomBot": 1
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
+            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" }
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" },
+            "ConservativeBot": 1
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" },
+            "AggressiveBot": 1
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" },
+            "RandomBot": 1
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    },
+    {
+        "episodes": 1000,
+        "roster": {
+            "DQNBot": { "count": 2, "model": "agents/agent_11.pt" }
+        },
+        "eps_start": 0.1,
+        "eps_min": 0.02,
+        "eps_min_at": 0.50,
+        "lr": 0.0005,
+        "update": 1500
+    }
+]

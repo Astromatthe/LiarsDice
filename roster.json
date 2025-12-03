@@ -1,0 +1,6 @@
+{
+    "DQNBot": {
+        "count": 2,
+        "model": "agents/agent_11.pt"
+    }
+}

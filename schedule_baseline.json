@@ -5,7 +5,7 @@
         "eps_start": 0.9,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -14,7 +14,7 @@
         "eps_start": 0.9,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -23,7 +23,7 @@
         "eps_start": 0.9,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -32,7 +32,7 @@
         "eps_start": 0.9,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -41,7 +41,7 @@
         "eps_start": 0.9,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     
@@ -51,59 +51,59 @@
     {
         "episodes": 1000,
         "roster": {
-            "RiskAverseBot": 1,
-            "RiskyBot": 1
+            "ConservativeBot": 1,
+            "AggressiveBot": 1
         },
         "eps_start": 0.3,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
-            "RiskyBot": 1,
+            "AggressiveBot": 1,
             "RandomBot": 1
         },
         "eps_start": 0.3,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
             "RandomBot": 1,
-            "RiskAverseBot": 1
+            "ConservativeBot": 1
         },
         "eps_start": 0.3,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
-            "RiskAverseBot": 2
+            "ConservativeBot": 2
         },
         "eps_start": 0.3,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
-            "RiskyBot": 2
+            "AggressiveBot": 2
         },
         "eps_start": 0.3,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -114,7 +114,7 @@
         "eps_start": 0.3,
         "eps_min": 0.05,
         "eps_min_at": 0.50,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
 
@@ -129,7 +129,7 @@
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -140,7 +140,7 @@
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -151,31 +151,31 @@
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
             "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
-            "RiskAverseBot": 1
+            "ConservativeBot": 1
         },
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
             "DQNBot": { "count": 1, "model": "agents/agent_5.pt" },
-            "RiskyBot": 1
+            "AggressiveBot": 1
         },
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -187,7 +187,7 @@
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
@@ -199,54 +199,54 @@
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
-            "DQNBot": { "count": 1, "model": "agents/agent_2.pt" },
-            "RiskAverseBot": 1
+            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" },
+            "ConservativeBot": 1
         },
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
-            "DQNBot": { "count": 1, "model": "agents/agent_2.pt" },
-            "RiskyBot": 1
+            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" },
+            "AggressiveBot": 1
         },
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
-            "DQNBot": { "count": 1, "model": "agents/agent_2.pt" },
+            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" },
             "RandomBot": 1
         },
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     },
     {
         "episodes": 1000,
         "roster": {
-            "DQNBot": { "count": 2, "model": "agents/agent_2.pt" }
+            "DQNBot": { "count": 2, "model": "agents/agent_11.pt" }
         },
         "eps_start": 0.2,
         "eps_min": 0.05,
         "eps_min_at": 0.40,
-        "lr": 0.01,
+        "lr": 0.001,
         "update": 1500
     }
 ]

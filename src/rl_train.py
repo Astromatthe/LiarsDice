@@ -369,6 +369,7 @@ def train_dqn(
         if boundary < len(win_rate_history) - 1:   # avoid line at final episode
             plt.axvline(x=boundary, linestyle='--', color='red', linewidth=1)
     plt.savefig("win_rate.png", dpi=300)
+    plt.savefig("win_rate.pdf",bbox_inches='tight')
     plt.close()
 
     return policy_net, target_net

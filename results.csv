@@ -1,0 +1,12 @@
+agent,episodes,roster,win_rate
+"agents/agent_22.pt",1000,"{""RandomBot"": 1}",0.997
+"agents/agent_22.pt",1000,"{""RiskyBot"": 1}",0.826
+"agents/agent_22.pt",1000,"{""RiskAverseBot"": 1}",0.637
+"agents/agent_22.pt",1000,"{""RandomBot"": 1, ""AggressiveBot"": 1}",0.92
+"agents/agent_22.pt",1000,"{""AggressiveBot"": 1, ""ConservativeBot"": 1}",0.557
+"agents/agent_22.pt",1000,"{""ConservativeBot"": 1, ""RandomBot"": 1}",0.616
+"agents/agent_22.pt",1000,"{""RandomBot"": 2}",0.986
+"agents/agent_22.pt",1000,"{""AggressiveBot"": 2}",0.847
+"agents/agent_22.pt",1000,"{""ConservativeBot"": 2}",0.501
+"agents/agent_22.pt",1000,"{""RiskAverseBot"": 2}",0.381
+"agents/agent_22.pt",1000,"{""RiskyBot"": 2}",0.72
