@@ -275,6 +275,15 @@ def train_dqn(
     for episode in pbar:
         #print(f"\rCurrent episode: {episode+1}", end="", flush=True)
         state = env.reset()
+
+        try:
+            bots = env.current_opponent_names
+            short = [name.replace("Bot", "") for name in bots]
+            tag = " + ".join(short)
+            pbar.set_postfix_str(tag)
+        except:
+            pass
+
         done = False
 
         while not done:

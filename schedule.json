@@ -1,111 +1,55 @@
 [
     {
-        "episodes": 3000,
-        "roster": { "AggressiveBot": 1 },
-        "eps_start": 1.0,
-        "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.001,
-        "update": 1500,
-        "model_type": "dron_moe",
-        "device": "cpu"
-    },
-    {
-        "episodes": 3000,
-        "roster": { "ConservativeBot": 1 },
-        "eps_start": 0.8,
-        "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.001,
-        "update": 1500,
-        "model_type": "dron_moe",
-        "device": "cpu"
-    },
-    {
-        "episodes": 3000,
-        "roster": { "RiskyBot": 1 },
-        "eps_start": 0.7,
-        "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.001,
-        "update": 1500,
-        "model_type": "dron_moe",
-        "device": "cpu"
-    },
-    {
-        "episodes": 3000,
-        "roster": { "RiskAverseBot": 1 },
-        "eps_start": 0.7,
-        "eps_min": 0.05,
-        "eps_min_at": 0.80,
-        "lr": 0.001,
-        "update": 1500,
-        "model_type": "dron_moe",
-        "device": "cpu"
-    },
-    {
-        "episodes": 3000,
+        "episodes": 1000,
         "roster": { "RandomBot": 1 },
-        "eps_start": 0.7,
+        "eps_start": 0.6,
         "eps_min": 0.05,
-        "eps_min_at": 0.80,
+        "eps_min_at": 0.60,
         "lr": 0.001,
         "update": 1500,
         "model_type": "dron_moe",
         "device": "cpu"
     },
     {
-        "episodes": 5000,
-        "roster": {
-            "AggressiveBot": 1,
-            "ConservativeBot": 1
-        },
-        "eps_start": 0.8,
+        "episodes": 1000,
+        "roster": { "AggressiveBot": 1 },
+        "eps_start": 0.3,
         "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.0007,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
         "update": 1500,
         "model_type": "dron_moe",
         "device": "cpu"
     },
     {
-        "episodes": 5000,
-        "roster": {
-            "RiskyBot": 1,
-            "RiskAverseBot": 1
-        },
-        "eps_start": 0.8,
+        "episodes": 1000,
+        "roster": { "ConservativeBot": 1 },
+        "eps_start": 0.3,
         "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.0007,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
         "update": 1500,
         "model_type": "dron_moe",
         "device": "cpu"
     },
     {
-        "episodes": 5000,
-        "roster": {
-            "RiskyBot": 1,
-            "ConservativeBot": 1
-        },
-        "eps_start": 0.8,
+        "episodes": 1000,
+        "roster": { "RiskyBot": 1 },
+        "eps_start": 0.3,
         "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.0007,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
         "update": 1500,
         "model_type": "dron_moe",
         "device": "cpu"
     },
     {
-        "episodes": 5000,
-        "roster": {
-            "AggressiveBot": 1,
-            "RiskAverseBot": 1
-        },
-        "eps_start": 0.8,
+        "episodes": 1000,
+        "roster": { "RiskAverseBot": 1 },
+        "eps_start": 0.3,
         "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.0007,
+        "eps_min_at": 0.30,
+        "lr": 0.001,
         "update": 1500,
         "model_type": "dron_moe",
         "device": "cpu"
@@ -114,39 +58,32 @@
         "episodes": 5000,
         "roster": {
             "ConservativeBot": 1,
-            "RiskAverseBot": 1
+            "AggressiveBot": 1,
+            "RandomBot": 1,
+            "RiskAverseBot": 1,
+            "RiskyBot": 1
         },
-        "eps_start": 0.8,
+        "eps_start": 0.6,
         "eps_min": 0.05,
-        "eps_min_at": 0.70,
-        "lr": 0.0007,
+        "eps_min_at": 0.60,
+        "lr": 0.001,
         "update": 1500,
         "model_type": "dron_moe",
         "device": "cpu"
     },
     {
-        "episodes": 10000,
+        "episodes": 12000,
         "roster": {
-            "RiskyBot": 1,
-            "DQNBot": { "count": 1, "model": "agents/agent_10.pt" }
+            "DQNBot": { "count": 1, "model": "agents/agent_6.pt" },
+            "ConservativeBot": 1,
+            "AggressiveBot": 1,
+            "RandomBot": 1,
+            "RiskAverseBot": 1,
+            "RiskyBot": 1
         },
-        "eps_start": 0.7,
+        "eps_start": 0.4,
         "eps_min": 0.05,
-        "eps_min_at": 0.90,
-        "lr": 0.0005,
-        "update": 1500,
-        "model_type": "dron_moe",
-        "device": "cpu"
-    },
-    {
-        "episodes": 10000,
-        "roster": {
-            "DQNBot": { "count": 1, "model": "agents/agent_11.pt" },
-            "RiskAverseBot": 1
-        },
-        "eps_start": 0.7,
-        "eps_min": 0.05,
-        "eps_min_at": 0.90,
+        "eps_min_at": 0.40,
         "lr": 0.0005,
         "update": 1500,
         "model_type": "dron_moe",

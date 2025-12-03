@@ -166,7 +166,7 @@ if __name__ == "__main__":
             epsilon_min=args.eps_end,
             epsilon_decay=args.eps_decay,
             target_update_freq=args.update,
-            memory_size=10000,
+            memory_size=20000,
             device=device,
             checkpoint_path=args.checkpoint,
             resume=args.resume,
