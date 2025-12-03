@@ -1,5 +1,5 @@
 from src.game import LiarsDiceGame
-from src.bots import RandomBot, RiskyBot, RiskAverseBot, ConservativeBot, AggressiveBot
+from src.bots import *
 from src.gui import LiarsDiceGUI
 import tkinter as tk
 import random

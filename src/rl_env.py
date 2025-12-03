@@ -1,7 +1,7 @@
 from typing import List, Tuple
 from config import FACE_COUNT, MAX_STATE_DIM, MAX_PLAYERS, NUM_ACTIONS, OPPONENT_FEATURE_DIM, NON_OPPONENT_FEATURE_DIM, DRON_MOE_NUM_EXPERTS, DRON_MOE_HIDDEN, MAX_OPPONENTS
 from src.game import LiarsDiceGame
-from src.bots import RandomBot, RiskAverseBot, RiskyBot, DQNBot
+from src.bots import *
 from src.beliefs import OpponentBelief
 from src.encode import encode_rl_state, decode_rl_action, encode_rl_action
 from src.rules import is_bid_higher
@@ -38,6 +38,7 @@ class LiarsDiceEnv:
             raise ValueError("Roster must define at least 1 opponent in the pool.")
         
         self._opponent_pool = []
+        self._model_cache = {}
 
         for BotClass, raw_count in roster.items():
             if isinstance(raw_count, dict):
@@ -136,23 +137,30 @@ class LiarsDiceEnv:
         except Exception:
             name = str(BotClass)
 
-        if name == "DQNBot" and model_path is not None and os.path.exists(model_path):
-            try:
-                ckpt = torch.load(model_path, map_location="cpu")
-                model_type = ckpt.get("model_type", "dqn")
-                if model_type == "dron_moe":
-                    policy_net = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN)
-                else:
-                    policy_net = DQN(MAX_OPPONENTS)
+        if name.startswith("DQNBot") and model_path is not None and os.path.exists(model_path):
+            key = (name, model_path)
+            policy_net = self._model_cache.get(key, None)
 
-                policy_net.load_state_dict(ckpt["policy_state"])
-                policy_net.eval()
-            except Exception as e:
-                print(f"Failed to load DQN model from {model_path}: {e} Using uninitialized model.")
-                if model_type == "dron_moe":
-                    policy_net = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN)
-                else:
-                    policy_net = DQN(MAX_OPPONENTS)
+            if policy_net is None:
+                try:
+                    ckpt = torch.load(model_path, map_location="cpu")
+                    model_type = ckpt.get("model_type", "dqn")
+                    if model_type == "dron_moe":
+                        policy_net = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN)
+                    else:
+                        policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS)
+
+                    policy_net.load_state_dict(ckpt["policy_state"])
+                    policy_net.eval()
+
+                    self._model_cache[key] = policy_net
+                except Exception as e:
+                    print(f"Failed to load DQN model from {model_path}: {e} Using uninitialized model.")
+                    if model_type == "dron_moe":
+                        policy_net = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN)
+                    else:
+                        policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS)
+                    self._model_cache[key] = policy_net
 
             return DQNBot(pid, policy_net, total_players=self.total_players, device="cpu", epsilon=0.0)
         
@@ -161,7 +169,7 @@ class LiarsDiceEnv:
     def reset(self, starting_player: int = None):
         self._build_players_for_episode()
 
-        self.current_opponent_names = {type(self.players[pid]).__name__ for pid in range(self.total_players) if pid != self.rl_id}
+        self.current_opponent_names = [type(self.players[pid]).__name__ for pid in range(self.total_players) if pid != self.rl_id]
 
         self.game = LiarsDiceGame(self.players, save_history = False)
 

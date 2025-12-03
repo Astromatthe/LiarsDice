@@ -251,16 +251,6 @@ def train_dqn(
                         if isinstance(first_key, str):
                             roster = deserialize_roster(roster)
 
-                
-                def _count_val(v):
-                    if isinstance(v, dict):
-                        return int(v.get("count", 0))
-                    return int(v)
-                
-                total_players = 1 + sum(_count_val(v) for v in roster.values())
-
-                assert total_players <= MAX_PLAYERS, "Roster exceeds MAX_PLAYERS"
-
                 env = LiarsDiceEnv(roster=roster)
 
 
@@ -271,18 +261,16 @@ def train_dqn(
 
     ### Main Training Loop ###
 
-    pbar = tqdm(range(start_episode, episodes), desc="Training", ncols=100)
+    pbar = tqdm(range(start_episode, episodes), desc="Training", ncols=150)
     for episode in pbar:
         #print(f"\rCurrent episode: {episode+1}", end="", flush=True)
         state = env.reset()
 
-        try:
+        if hasattr(env, "current_opponent_names"):
             bots = env.current_opponent_names
-            short = [name.replace("Bot", "") for name in bots]
-            tag = " + ".join(short)
-            pbar.set_postfix_str(tag)
-        except:
-            pass
+            label = " + ".join(bots)
+            label = (label+" "*35)[:35]
+            pbar.set_description(f"[{label}] Training")
 
         done = False
 

@@ -74,7 +74,8 @@
     {
         "episodes": 12000,
         "roster": {
-            "DQNBot": { "count": 1, "model": "agents/agent_6.pt" },
+            "DQNBotA": { "count": 1, "model": "agents/agent_5.pt" },
+            "DQNBotB": { "count": 1, "model": "agents/agent_6.pt" },
             "ConservativeBot": 1,
             "AggressiveBot": 1,
             "RandomBot": 1,
@@ -82,8 +83,8 @@
             "RiskyBot": 1
         },
         "eps_start": 0.4,
-        "eps_min": 0.05,
-        "eps_min_at": 0.40,
+        "eps_min": 0.02,
+        "eps_min_at": 0.60,
         "lr": 0.0005,
         "update": 1500,
         "model_type": "dron_moe",

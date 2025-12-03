@@ -364,5 +364,9 @@ class DQNBot:
             self.opponent_beliefs[bidder_pid].update_from_bid(bid)
 
         
+class DQNBotA(DQNBot):
+    """Tiny subclass to enable multiple DQN bots during scheduled training."""
+    pass
 
-
+class DQNBotB(DQNBot):
+    pass
