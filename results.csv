@@ -1,0 +1,29 @@
+agent,episodes,roster,win_rate
+"agents/agent_7.pt",1000,"{""RandomBot"": 1}",0.994
+"agents/agent_7.pt",1000,"{""AggressiveBot"": 1}",0.974
+"agents/agent_7.pt",1000,"{""ConservativeBot"": 1}",0.613
+"agents/agent_7.pt",1000,"{""RiskyBot"": 1}",0.845
+"agents/agent_7.pt",1000,"{""RiskAverseBot"": 1}",0.716
+"agents/agent_7.pt",1000,"{""RandomBot"": 1, ""AggressiveBot"": 1}",0.984
+"agents/agent_7.pt",1000,"{""ConservativeBot"": 1, ""AggressiveBot"": 1}",0.817
+"agents/agent_7.pt",1000,"{""ConservativeBot"": 1, ""RandomBot"": 1}",0.792
+"agents/agent_7.pt",1000,"{""RandomBot"": 2}",0.997
+"agents/agent_7.pt",1000,"{""AggressiveBot"": 2}",0.955
+"agents/agent_7.pt",1000,"{""ConservativeBot"": 2}",0.694
+"agents/agent_7.pt",1000,"{""RiskAverseBot"": 2}",0.62
+"agents/agent_7.pt",1000,"{""RiskyBot"": 2}",0.891
+"agents/agent_7.pt",1000,"{""RiskyBot"": 1, ""RiskAverseBot"": 1}",0.704
+"agents/agent_8.pt",1000,"{""RandomBot"": 1}",1.0
+"agents/agent_8.pt",1000,"{""AggressiveBot"": 1}",0.995
+"agents/agent_8.pt",1000,"{""ConservativeBot"": 1}",0.774
+"agents/agent_8.pt",1000,"{""RiskyBot"": 1}",0.921
+"agents/agent_8.pt",1000,"{""RiskAverseBot"": 1}",0.827
+"agents/agent_8.pt",1000,"{""RandomBot"": 1, ""AggressiveBot"": 1}",0.977
+"agents/agent_8.pt",1000,"{""ConservativeBot"": 1, ""AggressiveBot"": 1}",0.841
+"agents/agent_8.pt",1000,"{""ConservativeBot"": 1, ""RandomBot"": 1}",0.851
+"agents/agent_8.pt",1000,"{""RandomBot"": 2}",1.0
+"agents/agent_8.pt",1000,"{""AggressiveBot"": 2}",0.952
+"agents/agent_8.pt",1000,"{""ConservativeBot"": 2}",0.738
+"agents/agent_8.pt",1000,"{""RiskAverseBot"": 2}",0.613
+"agents/agent_8.pt",1000,"{""RiskyBot"": 2}",0.896
+"agents/agent_8.pt",1000,"{""RiskyBot"": 1, ""RiskAverseBot"": 1}",0.751

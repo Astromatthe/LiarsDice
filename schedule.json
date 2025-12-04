@@ -55,7 +55,7 @@
         "device": "cpu"
     },
     {
-        "episodes": 5000,
+        "episodes": 7000,
         "roster": {
             "ConservativeBot": 1,
             "AggressiveBot": 1,
@@ -72,10 +72,9 @@
         "device": "cpu"
     },
     {
-        "episodes": 12000,
+        "episodes": 15000,
         "roster": {
-            "DQNBotA": { "count": 1, "model": "agents/agent_5.pt" },
-            "DQNBotB": { "count": 1, "model": "agents/agent_6.pt" },
+            "DQNBot": { "count": 1, "model": "agents/agent_6.pt" },
             "ConservativeBot": 1,
             "AggressiveBot": 1,
             "RandomBot": 1,
@@ -86,6 +85,24 @@
         "eps_min": 0.02,
         "eps_min_at": 0.60,
         "lr": 0.0005,
+        "update": 1500,
+        "model_type": "dron_moe",
+        "device": "cpu"
+    },
+    {
+        "episodes": 8000,
+        "roster": {
+            "DQNBot": { "count": 1, "model": "agents/agent_7.pt" },
+            "ConservativeBot": 1,
+            "AggressiveBot": 1,
+            "RandomBot": 1,
+            "RiskAverseBot": 1,
+            "RiskyBot": 1
+        },
+        "eps_start": 0.3,
+        "eps_min": 0.01,
+        "eps_min_at": 0.40,
+        "lr": 0.0003,
         "update": 1500,
         "model_type": "dron_moe",
         "device": "cpu"

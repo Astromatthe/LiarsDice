@@ -159,14 +159,14 @@ if __name__ == "__main__":
             device = torch.device("cpu")
         policy, target = train_dqn(
             episodes=args.episodes,
-            batch_size=64,
+            batch_size=128,
             learning_rate=args.lr,
             gamma=0.99,
             epsilon_start=args.eps_start,
             epsilon_min=args.eps_end,
             epsilon_decay=args.eps_decay,
             target_update_freq=args.update,
-            memory_size=20000,
+            memory_size=50000,
             device=device,
             checkpoint_path=args.checkpoint,
             resume=args.resume,

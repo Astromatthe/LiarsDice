@@ -1,0 +1,11 @@
+{
+    "DQNBot": {
+        "count": 1,
+        "model": "agents/agent_7.pt"
+    },
+    "ConservativeBot": 1,
+    "AggressiveBot": 1,
+    "RandomBot": 1,
+    "RiskAverseBot": 1,
+    "RiskyBot": 1
+}
