@@ -8,6 +8,13 @@ class LiarsDiceGUI:
         self.players = players
         self.game = game
 
+        self.player_types = []
+        for i, p in enumerate(self.players):
+            if i == 0 or p is None:
+                self.player_types.append("Human")
+            else:
+                self.player_types.append(type(p).__name__)
+
         root.title("Liar's Dice")
 
         # UI elements
@@ -30,7 +37,8 @@ class LiarsDiceGUI:
         self.dice_frame.pack()
         self.dice_labels = []
         for i in range(len(self.players)):
-            lbl = tk.Label(self.dice_frame, text=f"P{i}: {self.game.dice[i]}")
+            prefix = f"P{i} ({self.player_types[i]}): "
+            lbl = tk.Label(self.dice_frame, text= prefix + str(self.game.dice[i]))
             lbl.grid(row=0, column=i, padx=5)
             self.dice_labels.append(lbl)
 
@@ -59,12 +67,13 @@ class LiarsDiceGUI:
         self.info_label.config(text=f"Current Player: P{cur if cur is not None else '-'}, Current Bid: {bid}")
         show_others = self.show_others_var.get()
         for i, lbl in enumerate(self.dice_labels):
+            prefix = f"P{i} ({self.player_types[i]}): "
             if i == 0 or show_others:
-                lbl.config(text=f"P{i}: {self.game.dice[i]}")
+                lbl.config(text= prefix + str(self.game.dice[i]))
             else:
                 # show '?' for each hidden die; if a die has been removed/marked (0 or None) show 'X'
                 hidden_str = ''.join('X' if d == 0 or d is None else '?' for d in self.game.dice[i])
-                lbl.config(text=f"P{i}: {hidden_str}")
+                lbl.config(text= prefix + hidden_str)
         # enable/disable human controls depending on turn
         if self.game.current_player == 0:
             self.bid_button.config(state = "normal")
@@ -126,7 +135,7 @@ class LiarsDiceGUI:
         if res.get("eliminated"):
             msg += f"\nEliminated: P{res['eliminated']}"
         # show in GUI instead of messagebox
-        self.message_label.config(text=msg, fg="white")
+        self.message_label.config(text=msg, fg="blue")
         self.update_ui()
 
     def show_game_over(self, winner: int):

@@ -109,7 +109,8 @@ class LiarsDiceGame:
 
         if action[0] == "bid":
             q, f = action[1]
-            if not is_bid_higher(self.current_bid, [q, f]):
+            legal_bids = self.get_legal_bids()
+            if [q,f] not in legal_bids:
                 return {"error": "invalid_bid", "current_bid": self.current_bid}
             self.current_bid = [q, f]
             self._current_round["bids"].append((actor_id, (q, f)))

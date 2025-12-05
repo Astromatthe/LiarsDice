@@ -27,3 +27,11 @@ agent,episodes,roster,win_rate
 "agents/agent_8.pt",1000,"{""RiskAverseBot"": 2}",0.613
 "agents/agent_8.pt",1000,"{""RiskyBot"": 2}",0.896
 "agents/agent_8.pt",1000,"{""RiskyBot"": 1, ""RiskAverseBot"": 1}",0.751
+
+"agents/agent_8.pt",1000,"{""MixedBot"": 1}",0.816
+"agents/agent_8.pt",1000,"{""MixedBot"": 1, ""ConservativeBot"": 1}",0.761
+"agents/agent_8.pt",1000,"{""MixedBot"": 1, ""RiskyBot"": 1}",0.773
+"agents/agent_8.pt",1000,"{""MixedBot"": 2}",0.666
+"agents/agent_8.pt",1000,"{""MixedBot"": 1, ""RiskAverseBot"": 1}",0.673
+"agents/agent_8.pt",1000,"{""MixedBot"": 1, ""AggressiveBot"": 1}",0.82
+"agents/agent_8.pt",1000,"{""MixedBot"": 1, ""RandomBot"": 1}",0.851
