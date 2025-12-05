@@ -86,6 +86,11 @@ class _StatBot(Player):
 class RiskyBot(_StatBot):
     """Bot that makes bids favoring higher quantities (more aggressive). Lower threshhold to call."""
 
+    def __init__(self, pid: int, call_threshold: float = 0.35, risk_factor: float = 0.8):
+        super().__init__(pid)
+        self.call_threshold = call_threshold
+        self.risk_factor = risk_factor
+
     def act(self, game):
         # if no legal bids exist, must call
         legal = self._legal_bids(game)
@@ -122,17 +127,22 @@ class RiskyBot(_StatBot):
             
         prob = self._prob_bid_true(game, bid)
         # risky threshhold: call if very unlikely 
-        if prob < 0.35:
+        if prob < self.call_threshold:
             return ("call", None)
         
         # Otherwise, pick aggressive bid maximizing score with risk_factor high
-        bid, score = self._best_bid_by_score(game, legal, risk_factor=0.8)
+        bid, score = self._best_bid_by_score(game, legal, risk_factor=self.risk_factor)
         if bid is None:
             return ("call", None) # no good bid found
         return ("bid", bid)
     
 class RiskAverseBot(_StatBot):
     """Bot that makes conservative bids (lower quantities). Higher threshhold to call."""
+
+    def __init__(self, pid: int, call_threshold: float = 0.05, safe_prob: float = 0.9):
+        super().__init__(pid)
+        self.call_threshold = call_threshold
+        self.safe_prob = safe_prob
 
     def act(self, game):
         legal = self._legal_bids(game)
@@ -167,7 +177,7 @@ class RiskAverseBot(_StatBot):
             
         prob = self._prob_bid_true(game, bid)
         # risk-averse threshhold: call if less likely
-        if prob < 0.05:
+        if prob < self.call_threshold:
             return ("call", None)
         
         # otherwise, make conservative minimal raise: pick smallest legal bid by (q, face) order
@@ -175,10 +185,26 @@ class RiskAverseBot(_StatBot):
         # prefer bids with reasonable probability
         for candidate in legal_sorted:
             cand_prob = self._prob_bid_true(game, candidate)
-            if cand_prob >= 0.90:
+            if cand_prob >= self.safe_prob:
                 return ("bid", candidate)
         # if none reasonable, pick the minimal increase
         return ("bid", legal_sorted[0])
+    
+class MixedBot(_StatBot):
+    """Mixed behavior bot that acts aggressive with high dice but conservative with low dice."""
+
+    def __init__(self, pid: int, risky_call_threshold: float = 0.3, risky_risk_factor: float = 0.5, ra_call_threshold: float = 0.1, ra_safe_prob: float = 0.8):
+        super().__init__(pid)
+        self.risky_bot = RiskyBot(pid, call_threshold=risky_call_threshold, risk_factor=risky_risk_factor)
+        self.risk_averse_bot = RiskAverseBot(pid, call_threshold=ra_call_threshold, safe_prob=ra_safe_prob)
+
+    def act(self, game):
+        _, own_count, _ = self._own_info(game)
+
+        if own_count < 4:
+            return self.risk_averse_bot.act(game)
+        else:
+            return self.risky_bot.act(game)
     
 class ConservativeBot(_StatBot):
     """Conservative Bot from WiLDCARD"""
