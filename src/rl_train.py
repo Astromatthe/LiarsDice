@@ -6,13 +6,13 @@ from src.rl_env import LiarsDiceEnv, get_legal_action_indices
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from config import NUM_ACTIONS, MAX_STATE_DIM, MAX_PLAYERS
+from config import NUM_ACTIONS, MAX_STATE_DIM, MAX_PLAYERS, DRON_MOE_NUM_EXPERTS, NON_OPPONENT_FEATURE_DIM, OPPONENT_FEATURE_DIM, DRON_MOE_HIDDEN, DRON_MOE_GATE_HIDDEN
 import matplotlib.pyplot as plt
 import os
 from typing import Dict, Any
 import importlib
-from src.dqn_model import DQN
-
+from src.dqn_model import DQN, DRONMoE
+from tqdm import tqdm
 
 
 def select_action(policy_net, state_vec, epsilon):
@@ -39,7 +39,8 @@ def select_action(policy_net, state_vec, epsilon):
     
     # Exploitation
     # Convert state to torch tensor [1, state_dim]
-    state_t = torch.tensor(state_vec, dtype = torch.float32).unsqueeze(0)
+    device = next(policy_net.parameters()).device
+    state_t = torch.tensor(state_vec, dtype = torch.float32, device=device).unsqueeze(0)
 
     with torch.no_grad():
         q_values = policy_net(state_t).squeeze(0)
@@ -47,7 +48,7 @@ def select_action(policy_net, state_vec, epsilon):
     # illegal actions initialized to -inf
     masked_q = torch.full_like(q_values, float("-inf"))
 
-    legal_t = torch.tensor(legal_actions, dtype=torch.long)
+    legal_t = torch.tensor(legal_actions, dtype=torch.long, device=device)
 
     masked_q[legal_t] = q_values[legal_t]
 
@@ -60,15 +61,17 @@ def select_action(policy_net, state_vec, epsilon):
 def optimize_model(memory, batch_size, policy_net, target_net, optimizer, gamma):
     if len(memory) < batch_size:
         return
+    
+    device = next(policy_net.parameters()).device
 
     batch = random.sample(memory, batch_size)
     s_batch, a_batch, r_batch, sp_batch, done_batch = zip(*batch)
 
-    state_batch = torch.tensor(np.array(s_batch), dtype=torch.float32)
-    action_batch = torch.tensor(a_batch, dtype=torch.long).unsqueeze(1)
-    reward_batch = torch.tensor(r_batch, dtype=torch.float32)
-    next_state_batch = torch.tensor(np.array(sp_batch), dtype=torch.float32)
-    done_batch = torch.tensor(done_batch, dtype=torch.float32)
+    state_batch = torch.tensor(np.array(s_batch), dtype=torch.float32, device=device)
+    action_batch = torch.tensor(a_batch, dtype=torch.long, device=device).unsqueeze(1)
+    reward_batch = torch.tensor(r_batch, dtype=torch.float32, device=device)
+    next_state_batch = torch.tensor(np.array(sp_batch), dtype=torch.float32, device=device)
+    done_batch = torch.tensor(done_batch, dtype=torch.float32, device=device)
 
     q_values = policy_net(state_batch).gather(1, action_batch).squeeze(1)
 
@@ -92,7 +95,7 @@ def optimize_model(memory, batch_size, policy_net, target_net, optimizer, gamma)
             max_next_q = torch.max(masked_q_i).item()
             max_next_q_list.append(max_next_q)
         
-        max_next_q_values = torch.tensor(max_next_q_list, dtype = torch.float32)
+        max_next_q_values = torch.tensor(max_next_q_list, dtype = torch.float32, device=device)
 
         target_q_values = reward_batch + gamma * max_next_q_values * (1 - done_batch)
         
@@ -154,14 +157,31 @@ def train_dqn(
     checkpoint_path: str = None,
     resume: bool = False,
     save_every: int = 100,
-    roster = None
+    roster = None,
+    model_type = "dqn"
 ):
     env = LiarsDiceEnv(roster=roster)
 
-    
+    def build_model(model_type: str):
+        if model_type == "dron_moe":
+            return DRONMoE(
+                state_dim=MAX_STATE_DIM,
+                action_dim=NUM_ACTIONS,
+                non_opp_dim=NON_OPPONENT_FEATURE_DIM,
+                opp_dim=OPPONENT_FEATURE_DIM,
+                num_experts=DRON_MOE_NUM_EXPERTS,
+                hidden_dim=DRON_MOE_HIDDEN,
+                gate_hidden=DRON_MOE_GATE_HIDDEN,
+                prefix_dim=10
+            )
+        else:
+            hidden_dim = 128
+            return DQN(MAX_STATE_DIM, NUM_ACTIONS, hidden_dim=hidden_dim)
 
-    policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
-    target_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    # policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    # target_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    policy_net = build_model(model_type).to(device)
+    target_net = build_model(model_type).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     optimizer = optim.Adam(policy_net.parameters(), lr = learning_rate)
@@ -182,6 +202,10 @@ def train_dqn(
     if resume and checkpoint_path is not None and os.path.exists(checkpoint_path):
         print(f"Loading checkpoint from {checkpoint_path}")
         ckpt = torch.load(checkpoint_path, map_location=device)
+        model_type = ckpt.get("model_type", "dqn")
+        policy_net = build_model(model_type).to(device)
+        target_net = build_model(model_type).to(device)
+        optimizer = optim.Adam(policy_net.parameters(), lr = learning_rate)
         try:
             policy_net.load_state_dict(ckpt["policy_state"])
             target_state = ckpt.get("target_state", None)
@@ -227,16 +251,6 @@ def train_dqn(
                         if isinstance(first_key, str):
                             roster = deserialize_roster(roster)
 
-                
-                def _count_val(v):
-                    if isinstance(v, dict):
-                        return int(v.get("count", 0))
-                    return int(v)
-                
-                total_players = 1 + sum(_count_val(v) for v in roster.values())
-
-                assert total_players <= MAX_PLAYERS, "Roster exceeds MAX_PLAYERS"
-
                 env = LiarsDiceEnv(roster=roster)
 
 
@@ -247,9 +261,17 @@ def train_dqn(
 
     ### Main Training Loop ###
 
-    for episode in range(start_episode, episodes):
+    pbar = tqdm(range(start_episode, episodes), desc="Training", ncols=150)
+    for episode in pbar:
         #print(f"\rCurrent episode: {episode+1}", end="", flush=True)
         state = env.reset()
+
+        if hasattr(env, "current_opponent_names"):
+            bots = env.current_opponent_names
+            label = " + ".join(bots)
+            label = (label+" "*35)[:35]
+            pbar.set_description(f"[{label}] Training")
+
         done = False
 
         while not done:
@@ -316,6 +338,7 @@ def train_dqn(
                 "stage_boundaries": stage_boundaries,
                 "memory": list(memory),
                 "roster": roster_serial,
+                "model_type": model_type,
             }
             try:
                 torch.save(ckpt, checkpoint_path)
@@ -347,6 +370,7 @@ def train_dqn(
             "stage_boundaries": stage_boundaries,
             "memory": list(memory),
             "roster": roster_serial,
+            "model_type": model_type,
         }
         try:
             torch.save(ckpt, checkpoint_path)

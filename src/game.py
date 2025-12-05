@@ -40,6 +40,8 @@ def _create_players_from_types(types: List[str]) -> List[object]:
                 players[i] = ConservativeBot(i)
             elif tt in ("aggressive","wildcard risky", "wildcard_risky", "wildcard-risky"):
                 players[i] = AggressiveBot(i)
+            elif tt in ("mixed"):
+                players[i] = MixedBot(i)
             else:
                 raise ValueError(f"Unknown player type: {t} at position {i}")
         return players
@@ -107,7 +109,8 @@ class LiarsDiceGame:
 
         if action[0] == "bid":
             q, f = action[1]
-            if not is_bid_higher(self.current_bid, [q, f]):
+            legal_bids = self.get_legal_bids()
+            if [q,f] not in legal_bids:
                 return {"error": "invalid_bid", "current_bid": self.current_bid}
             self.current_bid = [q, f]
             self._current_round["bids"].append((actor_id, (q, f)))
@@ -313,6 +316,8 @@ class LiarsDiceGame:
                 types.append("wildcard_conservative")
             elif isinstance(p, AggressiveBot):
                 types.append("wildcard_risky")
+            elif isinstance(p, MixedBot):
+                types.append("mixed")
             else:
                 types.append("unknown")
         return types

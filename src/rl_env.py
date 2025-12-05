@@ -1,14 +1,14 @@
 from typing import List, Tuple
-from config import FACE_COUNT, MAX_STATE_DIM, MAX_PLAYERS, NUM_ACTIONS
+from config import FACE_COUNT, MAX_STATE_DIM, MAX_PLAYERS, NUM_ACTIONS, OPPONENT_FEATURE_DIM, NON_OPPONENT_FEATURE_DIM, DRON_MOE_NUM_EXPERTS, DRON_MOE_HIDDEN, MAX_OPPONENTS
 from src.game import LiarsDiceGame
-from src.bots import RandomBot, RiskAverseBot, RiskyBot
+from src.bots import *
 from src.beliefs import OpponentBelief
 from src.encode import encode_rl_state, decode_rl_action, encode_rl_action
 from src.rules import is_bid_higher
 import random
 import numpy as np
 import torch
-from src.dqn_model import DQN
+from src.dqn_model import DQN, DRONMoE
 import os
 
 
@@ -19,6 +19,8 @@ class LiarsDiceEnv:
         roster: dict mapping BotClass → count
             Example: {RandomBot: 1, RiskyBot: 1}
             total_players = 1 (RL agent) + sum(counts)
+
+        Pool mode: Roster defines pool of potential opponents, randomly chosen up to max_opponents each episode.
         """
 
         if roster is None:
@@ -30,57 +32,79 @@ class LiarsDiceEnv:
         # roster values may be ints or dicts {"count": n, "model": ...}
         def _count_val(v):
             return int(v) if not isinstance(v, dict) else int(v.get("count", 0))
-
-        self.total_players = 1 + sum(_count_val(v) for v in roster.values())
-
-        assert self.total_players <= MAX_PLAYERS, \
-            f"Roster creates {self.total_players} players, but MAX_PLAYERS={MAX_PLAYERS}"
         
-        self.players = [None]
+        pool_size = sum(_count_val(v) for v in roster.values())
+        if pool_size<=0:
+            raise ValueError("Roster must define at least 1 opponent in the pool.")
+        
+        self._opponent_pool = []
+        self._model_cache = {}
 
         for BotClass, raw_count in roster.items():
-            # raw_count may be an int or a dict like {"count": n, "model": "file.pt"}
             if isinstance(raw_count, dict):
                 count = int(raw_count.get("count", 0))
                 model_path = raw_count.get("model", None)
             else:
                 count = int(raw_count)
                 model_path = None
-
             for _ in range(count):
-                pid = len(self.players)
-                # If this is a DQNBot-like class and a model path is provided, load model
-                try:
-                    name = BotClass.__name__
-                except Exception:
-                    name = str(BotClass)
+                self._opponent_pool.append((BotClass, model_path))
 
-                if name == "DQNBot" and model_path is not None and os.path.exists(model_path):
-                    # build model with correct dimensions and load weights
-                    model = DQN(MAX_STATE_DIM, NUM_ACTIONS)
-                    try:
-                        ckpt = torch.load(model_path, map_location="cpu")
-                        # If checkpoint contains policy_state dict, use it
-                        if isinstance(ckpt, dict) and "policy_state" in ckpt:
-                            model.load_state_dict(ckpt["policy_state"])
-                        else:
-                            # assume file is raw state_dict
-                            model.load_state_dict(ckpt)
-                        #print(f"Loaded DQN model for opponent from {model_path}")
-                    except Exception as e:
-                        print(f"Failed to load DQN model from {model_path}: {e}\nUsing uninitialized model.")
-                    # instantiate bot with model and n_players placeholder; DQNBot expects (pid, model, n_players)
-                    try:
-                        from src.bots import DQNBot
-                        # bots.DQNBot signature: (pid, policy_net, total_players, device='cpu', epsilon=0.0)
-                        self.players.append(DQNBot(pid, policy_net=model, total_players=self.total_players, device='cpu', epsilon=0.0))
-                        continue
-                    except Exception:
-                        # fallback to plain BotClass(pid)
-                        pass
+        self.total_players = 1 + min(MAX_OPPONENTS, len(self._opponent_pool))
 
-                # default instantiation
-                self.players.append(BotClass(pid))
+        self.players = [None] * self.total_players
+
+        self._build_players_for_episode()
+
+        # for BotClass, raw_count in roster.items():
+        #     # raw_count may be an int or a dict like {"count": n, "model": "file.pt"}
+        #     if isinstance(raw_count, dict):
+        #         count = int(raw_count.get("count", 0))
+        #         model_path = raw_count.get("model", None)
+        #     else:
+        #         count = int(raw_count)
+        #         model_path = None
+
+        #     for _ in range(count):
+        #         pid = len(self.players)
+        #         # If this is a DQNBot-like class and a model path is provided, load model
+        #         try:
+        #             name = BotClass.__name__
+        #         except Exception:
+        #             name = str(BotClass)
+
+        #         if name == "DQNBot" and model_path is not None and os.path.exists(model_path):
+        #             # build model with correct dimensions and load weights
+                    
+        #             try:
+        #                 ckpt = torch.load(model_path, map_location="cpu")
+        #                 # If checkpoint contains policy_state dict, use it
+        #                 if isinstance(ckpt, dict) and "policy_state" in ckpt:
+        #                     model_type = ckpt.get("model_type", "dqn")
+        #                     if model_type == "dron_moe":
+        #                         model = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN)
+        #                     else:
+        #                         model = DQN(MAX_STATE_DIM, NUM_ACTIONS)
+        #                     model.load_state_dict(ckpt["policy_state"])
+        #                 else:
+        #                     # assume file is raw state_dict
+        #                     model = DQN(MAX_STATE_DIM, NUM_ACTIONS)
+        #                     model.load_state_dict(ckpt)
+        #                 #print(f"Loaded DQN model for opponent from {model_path}")
+        #             except Exception as e:
+        #                 print(f"Failed to load DQN model from {model_path}: {e}\nUsing uninitialized model.")
+        #             # instantiate bot with model and n_players placeholder; DQNBot expects (pid, model, n_players)
+        #             try:
+        #                 from src.bots import DQNBot
+        #                 # bots.DQNBot signature: (pid, policy_net, total_players, device='cpu', epsilon=0.0)
+        #                 self.players.append(DQNBot(pid, policy_net=model, total_players=self.total_players, device='cpu', epsilon=0.0))
+        #                 continue
+        #             except Exception:
+        #                 # fallback to plain BotClass(pid)
+        #                 pass
+
+        #         # default instantiation
+        #         self.players.append(BotClass(pid))
 
         self.game = LiarsDiceGame(self.players, save_history=False)
 
@@ -90,10 +114,70 @@ class LiarsDiceEnv:
             if pid != self.rl_id
         }
 
+    def _build_players_for_episode(self):
+        """Sample up to max opponents from the roster pool and instantiate bots"""
+
+        self.players = [None]*self.total_players
+        self.players[self.rl_id] = None
+
+        n_opp = min(MAX_OPPONENTS, len(self._opponent_pool))
+
+        sampled = random.choices(self._opponent_pool, k=n_opp)
+
+        opp_pids = [pid for pid in range(self.total_players) if pid !=  self.rl_id]
+
+        for (BotClass, model_path), pid in zip(sampled, opp_pids):
+            self.players[pid] = self._instantiate_bot(BotClass, pid, model_path)
+
+    def _instantiate_bot(self, BotClass, pid: int, model_path: str | None):
+        """Instantiate a bot for the given botclass/pid/model path"""
+
+        try:
+            name = BotClass.__name__
+        except Exception:
+            name = str(BotClass)
+
+        if name.startswith("DQNBot") and model_path is not None and os.path.exists(model_path):
+            key = (name, model_path)
+            policy_net = self._model_cache.get(key, None)
+
+            if policy_net is None:
+                try:
+                    ckpt = torch.load(model_path, map_location="cpu")
+                    model_type = ckpt.get("model_type", "dqn")
+                    if model_type == "dron_moe":
+                        policy_net = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN)
+                    else:
+                        policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS)
+
+                    policy_net.load_state_dict(ckpt["policy_state"])
+                    policy_net.eval()
+
+                    self._model_cache[key] = policy_net
+                except Exception as e:
+                    print(f"Failed to load DQN model from {model_path}: {e} Using uninitialized model.")
+                    if model_type == "dron_moe":
+                        policy_net = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN)
+                    else:
+                        policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS)
+                    self._model_cache[key] = policy_net
+
+            return DQNBot(pid, policy_net, total_players=self.total_players, device="cpu", epsilon=0.0)
+        
+        return BotClass(pid)
+
     def reset(self, starting_player: int = None):
-        # restart game without having to rebuild player list
+        self._build_players_for_episode()
+
+        self.current_opponent_names = [type(self.players[pid]).__name__ for pid in range(self.total_players) if pid != self.rl_id]
 
         self.game = LiarsDiceGame(self.players, save_history = False)
+
+        self.opponent_beliefs = {
+            pid: OpponentBelief()
+            for pid in range(self.total_players)
+            if pid != self.rl_id
+        }
 
         if starting_player is None:
             starting_player = random.randrange(self.total_players)

@@ -68,6 +68,9 @@ def run_stage(stage_index: int, stage: Dict[str, Any]):
     eps_min = stage["eps_min"]
     eps_min_at = stage["eps_min_at"]
 
+    model_type = stage.get("model_type", "dqn")
+    device = stage.get("device", "cpu")
+
     # compute epsilon_decay to reach eps_min at eps_min_at%
     eps_decay = compute_epsilon_decay(
         eps_start=eps_start,
@@ -94,7 +97,9 @@ def run_stage(stage_index: int, stage: Dict[str, Any]):
         "--update", str(update_freq),
         "--checkpoint", "checkpoint.pt",
         "--resume",
-        "--save_every", "200"
+        "--save_every", "1000",
+        "--model_type", model_type,
+        "--device", device,
     ]
 
     print(f"[Stage {stage_num}] Running command:")

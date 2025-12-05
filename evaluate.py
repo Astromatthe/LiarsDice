@@ -5,8 +5,8 @@ import os
 from typing import Dict, Any, List
 
 from src.rl_env import LiarsDiceEnv, get_legal_action_indices
-from src.dqn_model import DQN
-from config import MAX_STATE_DIM, NUM_ACTIONS
+from src.dqn_model import DQN, DRONMoE
+from config import MAX_STATE_DIM, NUM_ACTIONS, NON_OPPONENT_FEATURE_DIM, OPPONENT_FEATURE_DIM, DRON_MOE_GATE_HIDDEN, DRON_MOE_HIDDEN, DRON_MOE_NUM_EXPERTS
 
 def load_single_roster(roster_json: Dict[str, Any]):
 
@@ -91,7 +91,12 @@ def evaluate_schedule(agent_path: str, schedule_path: str, episodes: int, device
     if policy_state is None:
         raise ValueError(f"{agent_path} does not contain 'policy_state'.")
 
-    policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    model_type = ckpt.get("model_type", "dqn")
+    if model_type == "dron_moe":
+        policy_net = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN).to(device)
+    else:
+        policy_net = DQN(MAX_STATE_DIM, NUM_ACTIONS).to(device)
+    
     policy_net.load_state_dict(policy_state)
     policy_net.eval()
 

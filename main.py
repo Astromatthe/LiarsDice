@@ -1,11 +1,36 @@
 from src.game import LiarsDiceGame
-from src.bots import RandomBot, RiskyBot, RiskAverseBot, ConservativeBot, AggressiveBot
+from src.bots import *
 from src.gui import LiarsDiceGUI
+from config import *
+from src.dqn_model import *
 import tkinter as tk
 import random
 import json
 import os
 import importlib
+import torch
+
+DQN_MODEL_PATH = "agents/agent_8.pt"
+
+def load_gui_dqn_policy(model_path: str, device: torch.device = torch.device("cpu")):
+    """Load a trained policy for GUI play"""
+
+    ckpt = torch.load(model_path, map_location=device)
+
+    if isinstance(ckpt, dict) and "policy_state" in ckpt:
+        model_type = ckpt.get("model_type", "dqn")
+        if model_type == "dron_moe":
+            policy = DRONMoE(state_dim=MAX_STATE_DIM, action_dim=NUM_ACTIONS, non_opp_dim=NON_OPPONENT_FEATURE_DIM, opp_dim=OPPONENT_FEATURE_DIM, num_experts=DRON_MOE_NUM_EXPERTS, hidden_dim=DRON_MOE_HIDDEN, gate_hidden=DRON_MOE_GATE_HIDDEN, prefix_dim=10)
+        else:
+            policy = DQN(MAX_STATE_DIM, NUM_ACTIONS, hidden_dim=128)
+        policy.load_state_dict(ckpt["policy_state"])
+    else:
+        policy = DQN(MAX_STATE_DIM, NUM_ACTIONS, hidden_dim=128)
+        policy.load_state_dict(ckpt["policy_state"])
+    
+    policy.to(device)
+    policy.eval()
+    return policy
 
 ## TEST
 def main():
@@ -34,14 +59,23 @@ def main():
              width = 30, command = lambda: select_mode("all_risk_averse")). pack(pady=3)
     tk.Button(start_frame, text = "Mixed Bots",
              width = 30, command = lambda: select_mode("mixed")).pack(pady=3)
-    tk.Button(start_frame, text = "All Wildcard Conservative Bots",
+    tk.Button(start_frame, text = "All WC Conservative Bots",
              width = 30, command = lambda: select_mode("all_cons")).pack(pady=3)
-    tk.Button(start_frame, text = "All Wildcard Aggressive Bots",
+    tk.Button(start_frame, text = "All WC Aggressive Bots",
              width = 30, command = lambda: select_mode("all_agg")).pack(pady=3)
+    tk.Button(start_frame, text="1v1 DQN Bot", width = 30, command = lambda: select_mode("dqn_1v1")).pack(pady=3)
+    tk.Button(start_frame, text="1v2 DQN Bot", width = 30, command = lambda: select_mode("dqn_1v2")).pack(pady=3)
     
     def start_game(root: tk.Tk, mode: str): 
         # create players: human (pid 0) + bots depending on mode
-        players = [None] * N_PLAYERS
+        n_players = N_PLAYERS
+
+        if mode == "dqn_1v1":
+            n_players = 2
+        if mode == "dqn_1v2":
+            n_players = 3
+
+        players = [None] * n_players
         players[0] = None # human player in GUI
         if mode == "all_random":
             for i in range(1, N_PLAYERS):
@@ -67,6 +101,27 @@ def main():
         elif mode == "all_agg":
             for i in range(1, N_PLAYERS):
                 players[i] = AggressiveBot(i)
+        elif mode == "dqn_1v1":
+            device = torch.device("cpu")
+            try:
+                policy_net = load_gui_dqn_policy(DQN_MODEL_PATH, device=device)
+            except Exception as e:
+                print(f"Failed to load DQN model from {DQN_MODEL_PATH}: {e}")
+                players[1] = RandomBot(1)
+            else:
+                players[1] = DQNBot(pid=1, policy_net=policy_net, total_players=n_players, device=device, epsilon=0.0)
+                print(f"Loaded DQN bot from {DQN_MODEL_PATH}.")
+        elif mode == "dqn_1v2":
+            device = torch.device("cpu")
+            for i in range(1,n_players):
+                try:
+                    policy_net = load_gui_dqn_policy(DQN_MODEL_PATH, device=device)
+                except Exception as e:
+                    print(f"Failed to load DQN model from {DQN_MODEL_PATH}: {e}")
+                    players[i] = RandomBot(i)
+                else:
+                    players[i] = DQNBot(pid=i, policy_net=policy_net, total_players=n_players, device=device, epsilon=0.0)
+                    print(f"Loaded DQN bot from {DQN_MODEL_PATH}.")
         else:
             # fallback to all random
             for i in range(1, N_PLAYERS):
@@ -114,6 +169,8 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--save_every", type=int, default=100)
+    parser.add_argument("--model_type", type=str, default="dqn", choices=["dqn", "dron_moe"], help="Which Q-network architecture to train - DQN or DRON-MoE")
+    parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"], help="Use CPU or GPU for network")
 
     args = parser.parse_args()
 
@@ -148,21 +205,28 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Failed to load roster file {roster_file}: {e}")
         start_time = time.perf_counter()
+        if torch.cuda.is_available() and args.device == "cuda":
+            print("CUDA available, using GPU acceleration")
+            device = torch.device("cuda")
+        else:
+            print("CUDA not used, using CPU.")
+            device = torch.device("cpu")
         policy, target = train_dqn(
             episodes=args.episodes,
-            batch_size=64,
+            batch_size=128,
             learning_rate=args.lr,
             gamma=0.99,
             epsilon_start=args.eps_start,
             epsilon_min=args.eps_end,
             epsilon_decay=args.eps_decay,
             target_update_freq=args.update,
-            memory_size=10000,
-            device="cpu",
+            memory_size=50000,
+            device=device,
             checkpoint_path=args.checkpoint,
             resume=args.resume,
             save_every=args.save_every,
             roster=roster,
+            model_type=args.model_type,
         )
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
